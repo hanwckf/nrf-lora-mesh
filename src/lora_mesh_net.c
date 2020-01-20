@@ -25,7 +25,9 @@ QueueHandle_t net_rx_buf;
 
 SemaphoreHandle_t m_ack_Semaphore;
 
-static int8_t ra_handle(LoRaPkg* p, lora_net_hook *hook);
+static void ra_pre_handle(LoRaPkg* p);
+static void send_ra_respon(LoRaPkg* p, lora_net_hook *hook);
+static bool ra_forward(LoRaPkg* p);
 
 TaskHandle_t lora_net_tx_handle;
 
@@ -87,9 +89,12 @@ static int8_t send_wait_ack(LoRaPkg* p, lora_net_hook* hook)
 		tries++;
 		xSemaphoreTake(m_ack_Semaphore, 0); /* clean Semaphore */
 		NET_TX(p, mac_tx_buf, portMAX_DELAY, hook);
-		if (xSemaphoreTake(m_ack_Semaphore, pdMS_TO_TICKS(ACK_TIMEOUT)) == pdPASS)
+		if (xSemaphoreTake(m_ack_Semaphore, pdMS_TO_TICKS(ACK_TIMEOUT)) == pdPASS) {
+			net_tx_ack++;
 			return 0; /* ack success */
+		}
 	} while (tries < ACK_MAX);
+	net_tx_ack_fail++;
 	return -1;
 }
 
@@ -105,34 +110,36 @@ void lora_net_tx_task (void * pvParameter)
 			/* check dst addr is not local addr */
 			if (p.Header.NetHeader.dst == Route.getNetAddr())
 				continue;
-			/* check broadcast */
-			if (p.Header.NetHeader.dst != NET_BROADCAST_ADDR)
-			{
+			
+			/* situation 1: NET unicast with MAC broadcast will be forwarded by nodes, eg. RA pkgs 
+			   situation 2: NET broadcast with MAC unicast is the same as NET unicast with MAC unicast
+			   situation 3: NET broadcast with MAC broadcast and will not be forwarded by any node, 
+				 but can be receive by all neighbor nodes.
+			   so we set NET broadcast to situation 3 forcedly */
+			
+			if (p.Header.NetHeader.dst == NET_BROADCAST_ADDR) {
+				p.Header.MacHeader.dst = MAC_BROADCAST_ADDR;
+				NET_TX(p, mac_tx_buf, portMAX_DELAY, hook);
+			} else {
+				/* net unicast, findout next hop */
 				nexthop = Route.getRouteTo(p.Header.NetHeader.dst);
 				if (nexthop < 0) {
 					/* no nexthop, generate RA, and broadcast it */
+					/* RA with NET unicast and MAC broadcast */
 					GEN_RA(t, p.Header.NetHeader.dst);
 					NET_TX(t, mac_tx_buf, portMAX_DELAY, hook);
 				} else {
-					/* Route to nexthop */
+					/* Forward to nexthop */
 					p.Header.MacHeader.dst = nexthop;
 					if (p.Header.type == TYPE_DATA && p.Header.NetHeader.ack == ACK)
 					{
 						p.Header.NetHeader.pid = ack_wait_id++;
-						if (send_wait_ack(&p, hook) < 0) {
-							Route.delRouteByNexthop(nexthop);
-							/* ack failed, delete route */
-							net_tx_ack_fail++;
-						} else {
-							net_tx_ack++;
-						}
+						if (send_wait_ack(&p, hook) < 0)
+							Route.delRouteByNexthop(nexthop); /* ack failed, delete route */
 					} else {
 						NET_TX(p, mac_tx_buf, portMAX_DELAY, hook);
 					}
 				}
-			} else {
-				/* broadcast */
-				NET_TX(p, mac_tx_buf, portMAX_DELAY, hook);
 			}
 		}
 	}
@@ -157,6 +164,9 @@ void lora_net_rx_task (void * pvParameter)
 				GEN_ACK(t, p);
 				NET_TX(t, mac_tx_buf, portMAX_DELAY, hook);
 			}
+			
+			if (p.Header.type == TYPE_RA)
+				ra_pre_handle(&p);
 			
 			if (p.Header.NetHeader.dst == Route.getNetAddr()
 					|| p.Header.NetHeader.dst == NET_BROADCAST_ADDR) {
@@ -183,24 +193,26 @@ void lora_net_rx_task (void * pvParameter)
 							GEN_PINGACK(t, p);
 							NET_TX(t, mac_tx_buf, portMAX_DELAY, hook);
 						} else {
-							/* It is pingack */
+							/* It is a pingack */
 							NET_RX(p, net_rx_buf, 0, hook);
 						}
 						break;
-					case TYPE_RA: /* It can be broadcast(RA) or unicast(RESPON), need to check hops in ra_handle */
-						ra_handle(&p, hook);
+					case TYPE_RA: /* It must be NET unicast (MAC broadcast), need to check hops in ra_handle */
+						send_ra_respon(&p, hook);
 						break;
 					default: net_rx_drop++; break;
 				}
 			} else {
-				/* It must be unicast, check hops */
+				/* It must be NET unicast, check hops */
 				if (p.Header.NetHeader.hop > MAX_HOPS) {
 					/* hop max, will not forward pkg */
 					net_rx_drop++;
 				} else {
 					if (hook->netForward != NULL) hook->netForward();
-					net_fwd++;
-					p.Header.NetHeader.hop++;
+					if (p.Header.type == TYPE_RA && !ra_forward(&p)) {
+						continue;
+					}
+					net_fwd++; p.Header.NetHeader.hop++;
 					NET_TX(p, net_tx_buf, portMAX_DELAY, hook);
 				}
 			}
@@ -208,19 +220,19 @@ void lora_net_rx_task (void * pvParameter)
 	}
 }
 
-static int8_t ra_handle(LoRaPkg* p, lora_net_hook *hook)
+static void ra_pre_handle(LoRaPkg* p)
 {
-	uint8_t i; LoRaPkg t;
+	uint8_t i;
 	switch (p->Header.NetHeader.subtype) {
 		case SUB_RA:
 			/* ignore RA from local */
 			if (p->Header.NetHeader.src == Route.getNetAddr())
-				return 0;
+				return;
 			
 			/* ignore RA already recv */
 			for (i=0; i < p->Header.NetHeader.hop; i++) {
 				if (p->RouteData.RA_List[i] == Route.getNetAddr())
-					return 0;
+					return;
 			}
 			
 			Route.updateRoute(p->Header.NetHeader.src, 
@@ -229,30 +241,44 @@ static int8_t ra_handle(LoRaPkg* p, lora_net_hook *hook)
 				Route.updateRoute(p->RouteData.RA_List[i],
 					p->Header.MacHeader.src, p->Header.NetHeader.hop - i - 1);
 			}
-			
-			if (p->Header.NetHeader.dst == Route.getNetAddr()) {
-				memcpy(&t, p, sizeof(LoRaPkg));
-				t.Header.NetHeader.subtype = SUB_RA_RESPON;
-				t.Header.NetHeader.dst = p->Header.NetHeader.src;
-				t.Header.NetHeader.src = Route.getNetAddr();
-				/* send RA_RESPON */
-				NET_TX(t, net_tx_buf, portMAX_DELAY, hook);
-				return 0;
-			}
-			
-			/* check hops, add NetAddr to RA_List */
-			if (p->Header.NetHeader.hop < MAX_HOPS) {
-				memcpy(&t, p, sizeof(LoRaPkg));
-				t.RouteData.RA_List[t.Header.NetHeader.hop] = Route.getNetAddr();
-				t.Header.NetHeader.hop++;
-				/* rebroadcast */
-				NET_TX(t, net_tx_buf, portMAX_DELAY, hook);
-				return 0;
-			}
 			break;
-		case SUB_RA_RESPON: return 0; /* already process in peek_msg */
+		case SUB_RA_RESPON: break; /* already process in peek_msg */
 		case SUB_RA_FAIL: break; /* TODO */
 		default: break;
 	}
-	return -1;
+}
+
+static void send_ra_respon(LoRaPkg* p, lora_net_hook *hook)
+{
+	LoRaPkg t;
+	memcpy(&t, p, sizeof(LoRaPkg));
+	t.Header.NetHeader.subtype = SUB_RA_RESPON;
+	t.Header.NetHeader.dst = p->Header.NetHeader.src;
+	t.Header.NetHeader.src = Route.getNetAddr();
+	NET_TX(t, net_tx_buf, portMAX_DELAY, hook);
+}
+
+static bool ra_forward(LoRaPkg* p)
+{
+	uint8_t i;
+	switch (p->Header.NetHeader.subtype) {
+		case SUB_RA:
+			/* ignore RA from local */
+			if (p->Header.NetHeader.src == Route.getNetAddr())
+				return false;
+			
+			/* ignore RA already recv */
+			for (i=0; i < p->Header.NetHeader.hop; i++) {
+				if (p->RouteData.RA_List[i] == Route.getNetAddr())
+					return false;
+			}
+
+			/* add NetAddr to RA_List, then rebroadcast */
+			p->RouteData.RA_List[p->Header.NetHeader.hop] = Route.getNetAddr();
+			return true;
+		case SUB_RA_RESPON: break; /* already process in peek_msg */
+		case SUB_RA_FAIL: break; /* TODO */
+		default: break;
+	}
+	return false;
 }

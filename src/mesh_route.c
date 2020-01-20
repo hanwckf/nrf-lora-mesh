@@ -55,11 +55,12 @@ static void _delRouteByDest (uint8_t dest)
 #define RSSI_WEAK0_THRESHOLD -60
 #define RSSI_DIFF0_THRESHOLD 30
 
-static bool isNeedUpdate(uint8_t old_hop, uint8_t new_hop)
+static bool isNeedUpdate(uint8_t old_hop, uint8_t new_hop, uint8_t old_hop_count, uint8_t new_hop_count)
 {
 	if (!(_LinkQuality[new_hop].valid && _LinkQuality[old_hop].valid))
 		return true;
-
+	if (old_hop == new_hop)
+		return true;
 	if (_LinkQuality[old_hop].quality < RSSI_WEAK2_THRESHOLD
 			&& _LinkQuality[new_hop].quality - _LinkQuality[old_hop].quality > RSSI_DIFF2_THRESHOLD) {
 			return true;
@@ -69,6 +70,8 @@ static bool isNeedUpdate(uint8_t old_hop, uint8_t new_hop)
 	} else if (_LinkQuality[old_hop].quality < RSSI_WEAK0_THRESHOLD
 			&& _LinkQuality[new_hop].quality - _LinkQuality[old_hop].quality > RSSI_DIFF0_THRESHOLD) {
 			return true;
+	} else if (_LinkQuality[new_hop].quality > RSSI_WEAK0_THRESHOLD && new_hop_count < old_hop_count) {
+		return true;
 	}
 	return false;
 }
@@ -81,7 +84,7 @@ static void _updateRoute (uint8_t dest, uint8_t next_hop, uint8_t hops)
 		for (i = 0; i < ROUTING_TABLE_SIZE; i++)
 		{
 			if (_routes[i].dest == dest && _routes[i].state == Valid
-					&& isNeedUpdate(_routes[i].next_hop, next_hop))
+					&& isNeedUpdate(_routes[i].next_hop, next_hop, _routes[i].hops, hops))
 			{
 				_routes[i].next_hop = next_hop;
 				_routes[i].hops = hops;

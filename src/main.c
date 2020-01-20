@@ -124,11 +124,19 @@ static void app_ping_task (void * pvParameter)
 				time = -1;
 			}
 			/* upload ret */
-			u.Header.NetHeader.dst = ping_req.upload_node;
-			u.AppData.custom[0] = CMD_UPLOAD_PING;
-			u.AppData.custom[1] = ping_req.ping_dest;
-			memcpy(u.AppData.custom + 2, &time, sizeof(time));
-			APP_TX(u, net_tx_buf, 0);
+			if (Route.getNetAddr() == ping_req.upload_node) {
+				if (time < 0) {
+					NRF_LOG("0x%02x -> 0x%02x, timeout!",Route.getNetAddr(), ping_req.ping_dest);
+				} else {
+					NRF_LOG("0x%02x -> 0x%02x, %d ms",Route.getNetAddr(), ping_req.ping_dest, time);
+				}
+			} else {
+				u.Header.NetHeader.dst = ping_req.upload_node;
+				u.AppData.custom[0] = CMD_UPLOAD_PING;
+				u.AppData.custom[1] = ping_req.ping_dest;
+				memcpy(u.AppData.custom + 2, &time, sizeof(time));
+				APP_TX(u, net_tx_buf, 0);
+			}
 		}
 	}
 }
@@ -177,7 +185,8 @@ static void app_control (LoRaPkg *p)
 			break;
 		case SUB_CONTROL:
 			switch (p->AppData.custom[0]) {
-				case CMD_PING: notify_ping_app(p);
+				case CMD_PING: 
+					notify_ping_app(p);
 					break;
 				case CMD_UPLOAD_PING: print_pingret(p);
 					break;
@@ -214,6 +223,22 @@ static void app_recv_task (void * pvParameter)
 				default: break;
 			}
 		}
+	}
+}
+
+static TaskHandle_t app_gw_handle;
+static void app_gw_task (void * pvParameter)
+{
+	Ping_t ping_req;
+	ping_req.upload_node = *(uint8_t *)pvParameter;
+	while (1) {
+		vTaskDelay(pdMS_TO_TICKS(5000));
+		ping_req.ping_dest = 0x2;
+		xQueueSend(app_ping_buf, &ping_req, 0);
+		
+		vTaskDelay(pdMS_TO_TICKS(5000));
+		ping_req.ping_dest = 0x3;
+		xQueueSend(app_ping_buf, &ping_req, 0);	
 	}
 }
 
@@ -349,8 +374,12 @@ int main(void)
 			
 			xTaskCreate(lora_net_tx_task, "lora_net_tx", configMINIMAL_STACK_SIZE + 200, &param, 2, &lora_net_tx_handle);
 			xTaskCreate(lora_net_rx_task, "lora_net_rx", configMINIMAL_STACK_SIZE + 200, &param, 2, &lora_net_rx_handle);
-			
-			xTaskCreate(app_upload_task, "app_upload", configMINIMAL_STACK_SIZE + 100, NULL, 1, &app_upload_handle);
+			if (NRF_UICR->CUSTOMER[1] == 0x1) {
+				/* ping to id 0x2 and 0x3 periodly */
+				xTaskCreate(app_gw_task, "app_gw", configMINIMAL_STACK_SIZE + 100, NULL, 1, &app_gw_handle);
+			} else {
+				xTaskCreate(app_upload_task, "app_upload", configMINIMAL_STACK_SIZE + 100, NULL, 1, &app_upload_handle);
+			}
 			xTaskCreate(app_recv_task, "app_recv", configMINIMAL_STACK_SIZE + 200, NULL, 1, &app_recv_handle);
 			xTaskCreate(app_stat_task, "app_stat", configMINIMAL_STACK_SIZE + 100, NULL, 1, &app_stat_handle);
 			xTaskCreate(app_ping_task, "app_ping", configMINIMAL_STACK_SIZE + 100, NULL, 1, &app_ping_handle);
