@@ -1,6 +1,7 @@
 TARGETS          := nrf52832_xxaa
 OUTPUT_DIRECTORY := _build
 GNU_INSTALL_ROOT =
+GNU_PREFIX = arm-none-eabi
 PRETTY = 1
 
 SDK_ROOT := ../nRF5_SDK_15.3.0_59ac345
