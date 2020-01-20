@@ -10,6 +10,8 @@ $(OUTPUT_DIRECTORY)/nrf52832_xxaa.out: \
 # Source files common to all targets
 include nrf_sdk.inc
 
+CFLAGS += -DUSE_TCXO
+
 SRC_FILES += \
   $(PROJ_DIR)/src/main.c \
   $(PROJ_DIR)/src/board_init.c \
