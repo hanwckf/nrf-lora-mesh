@@ -1,10 +1,7 @@
+include config.mk
 TARGETS          := nrf52832_xxaa
 OUTPUT_DIRECTORY := _build
-GNU_INSTALL_ROOT =
-GNU_PREFIX = arm-none-eabi
 PRETTY = 1
-
-SDK_ROOT := ../nRF5_SDK_15.3.0_59ac345
 PROJ_DIR := $(shell pwd)
 
 $(OUTPUT_DIRECTORY)/nrf52832_xxaa.out: \
@@ -121,3 +118,4 @@ SDK_CONFIG_FILE := $(PROJ_DIR)/include/sdk_config.h
 CMSIS_CONFIG_TOOL := $(SDK_ROOT)/external_tools/cmsisconfig/CMSIS_Configuration_Wizard.jar
 sdk_config:
 	java -jar $(CMSIS_CONFIG_TOOL) $(SDK_CONFIG_FILE)
+
