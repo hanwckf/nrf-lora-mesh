@@ -38,11 +38,12 @@ void mac_peek_pkg (LoRaPkg* pkg)
 	/* update link quality hashmap */
 	Route.updateLinkQualityMap(pkg->Header.MacHeader.src, pkg->stat.RssiPkt);
 	
-	/* add pkg mac src addr to Route table */
+	/* add mac src addr to Route table */
 	Route.updateRoute(pkg->Header.NetHeader.src,
 		pkg->Header.MacHeader.src, pkg->Header.NetHeader.hop);
 	
-	if (pkg->Header.type == TYPE_RA && pkg->Header.NetHeader.subtype == SUB_RA_RESPON) {
+	if (pkg->Header.type == TYPE_RA && pkg->Header.NetHeader.subtype == SUB_RA_RESPON)
+	{	
 		for (i = 0; i < pkg->Header.NetHeader.hop; i++) {
 			if (pkg->RouteData.RA_List[i] == Route.getMacAddr())
 				break;
@@ -204,7 +205,6 @@ void lora_mac_task(void * pvParameter)
         } else 
 		{
 			NRF_LOG_DBG("CAD error!");
-			/* error, print irqRegs */ 
 		}
 		
 		Radio.Sleep();

@@ -145,6 +145,17 @@ void lora_net_tx_task (void * pvParameter)
 	}
 }
 
+static uint16_t ra_respon_countdown[255] = { 0 };
+
+static void ra_respon_timer_cb(TimerHandle_t xTimer) {
+	taskENTER_CRITICAL();
+	for (uint8_t i=0; i<255; i++) {
+		if (ra_respon_countdown[i] != 0)
+			--ra_respon_countdown[i];
+	}
+	taskEXIT_CRITICAL();
+}
+
 TaskHandle_t lora_net_rx_handle;
 
 void lora_net_rx_task (void * pvParameter)
@@ -152,6 +163,9 @@ void lora_net_rx_task (void * pvParameter)
 	mac_net_param_t *param = (mac_net_param_t *)pvParameter;
 	lora_net_hook *hook = &(param->net_hooks);
 	LoRaPkg p,t;
+	TimerHandle_t ra_respon_timer = xTimerCreate("ra_respon_timer", pdMS_TO_TICKS(1000), pdTRUE, 0, ra_respon_timer_cb);
+	if (ra_respon_timer != NULL)
+		xTimerStart(ra_respon_timer,0);
 	
 	while (1) {
 		if ( xQueueReceive(mac_rx_buf, &p, portMAX_DELAY) == pdPASS)
@@ -203,18 +217,18 @@ void lora_net_rx_task (void * pvParameter)
 				}
 			} else {
 				/* It must be NET unicast, check hops */
-				if (p.Header.NetHeader.hop > MAX_HOPS) {
-					/* hop max, will not forward pkg */
-					net_rx_drop++; continue;
-				} else {
-					if (hook->netForward != NULL) hook->netForward();
-					net_fwd++;
+				if (p.Header.NetHeader.hop < MAX_HOPS) {
 					if (p.Header.type == TYPE_RA) {
 						ra_forward(&p, hook);
 					} else {
+						if (hook->netForward != NULL) hook->netForward();
+						net_fwd++;
 						p.Header.NetHeader.hop++;
 						NET_TX(p, net_tx_buf, portMAX_DELAY, hook);
 					}
+				} else {
+					/* hop max, will not forward pkg */
+					net_rx_drop++;
 				}
 			}
 		}
@@ -235,9 +249,7 @@ static void ra_pre_handle(LoRaPkg* p)
 				if (p->RouteData.RA_List[i] == Route.getNetAddr())
 					return;
 			}
-			
-			Route.updateRoute(p->Header.NetHeader.src, 
-				p->Header.MacHeader.src, p->Header.NetHeader.hop);
+
 			for (i=0; i < p->Header.NetHeader.hop; i++) {
 				Route.updateRoute(p->RouteData.RA_List[i],
 					p->Header.MacHeader.src, p->Header.NetHeader.hop - i - 1);
@@ -252,11 +264,14 @@ static void ra_pre_handle(LoRaPkg* p)
 static void send_ra_respon(LoRaPkg* p, lora_net_hook *hook)
 {
 	LoRaPkg t;
-	memcpy(&t, p, sizeof(LoRaPkg));
-	t.Header.NetHeader.subtype = SUB_RA_RESPON;
-	t.Header.NetHeader.dst = p->Header.NetHeader.src;
-	t.Header.NetHeader.src = Route.getNetAddr();
-	NET_TX(t, net_tx_buf, portMAX_DELAY, hook);
+	if (ra_respon_countdown[p->Header.NetHeader.src] == 0) {
+		ra_respon_countdown[p->Header.NetHeader.src] = 30;
+		memcpy(&t, p, sizeof(LoRaPkg));
+		t.Header.NetHeader.subtype = SUB_RA_RESPON;
+		t.Header.NetHeader.dst = p->Header.NetHeader.src;
+		t.Header.NetHeader.src = Route.getNetAddr();
+		NET_TX(t, net_tx_buf, portMAX_DELAY, hook);
+	}
 }
 
 static bool ra_forward(LoRaPkg* p, lora_net_hook *hook)
