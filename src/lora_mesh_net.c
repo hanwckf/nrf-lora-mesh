@@ -27,7 +27,7 @@ SemaphoreHandle_t m_ack_Semaphore;
 
 static void ra_pre_handle(LoRaPkg* p);
 static void send_ra_respon(LoRaPkg* p, lora_net_hook *hook);
-static bool ra_forward(LoRaPkg* p);
+static bool ra_forward(LoRaPkg* p, lora_net_hook *hook);
 
 TaskHandle_t lora_net_tx_handle;
 
@@ -198,22 +198,23 @@ void lora_net_rx_task (void * pvParameter)
 						}
 						break;
 					case TYPE_RA: /* It must be NET unicast (MAC broadcast), need to check hops in ra_handle */
-						send_ra_respon(&p, hook);
-						break;
+						send_ra_respon(&p, hook); break;
 					default: net_rx_drop++; break;
 				}
 			} else {
 				/* It must be NET unicast, check hops */
 				if (p.Header.NetHeader.hop > MAX_HOPS) {
 					/* hop max, will not forward pkg */
-					net_rx_drop++;
+					net_rx_drop++; continue;
 				} else {
 					if (hook->netForward != NULL) hook->netForward();
-					if (p.Header.type == TYPE_RA && !ra_forward(&p)) {
-						continue;
+					net_fwd++;
+					if (p.Header.type == TYPE_RA) {
+						ra_forward(&p, hook);
+					} else {
+						p.Header.NetHeader.hop++;
+						NET_TX(p, net_tx_buf, portMAX_DELAY, hook);
 					}
-					net_fwd++; p.Header.NetHeader.hop++;
-					NET_TX(p, net_tx_buf, portMAX_DELAY, hook);
 				}
 			}
 		}
@@ -258,7 +259,7 @@ static void send_ra_respon(LoRaPkg* p, lora_net_hook *hook)
 	NET_TX(t, net_tx_buf, portMAX_DELAY, hook);
 }
 
-static bool ra_forward(LoRaPkg* p)
+static bool ra_forward(LoRaPkg* p, lora_net_hook *hook)
 {
 	uint8_t i;
 	switch (p->Header.NetHeader.subtype) {
@@ -275,6 +276,8 @@ static bool ra_forward(LoRaPkg* p)
 
 			/* add NetAddr to RA_List, then rebroadcast */
 			p->RouteData.RA_List[p->Header.NetHeader.hop] = Route.getNetAddr();
+			p->Header.NetHeader.hop++;
+			NET_TX(p, mac_tx_buf, portMAX_DELAY, hook);
 			return true;
 		case SUB_RA_RESPON: break; /* already process in peek_msg */
 		case SUB_RA_FAIL: break; /* TODO */
