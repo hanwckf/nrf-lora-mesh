@@ -1,11 +1,12 @@
+#define DEBUG_LOG
 #include "mesh_route.h"
 #include "compact.h"
 #include "FreeRTOS.h"
 #include "task.h"
 
 static Addr_t _addr;
-static RouteTableEntry _routes[ROUTING_TABLE_SIZE];
-static LinkQualityEntry _LinkQuality[255];
+RouteTableEntry _routes[ROUTING_TABLE_SIZE];
+LinkQualityEntry _LinkQuality[255];
 
 #define DELETE_ROUTE(index) \
 	do { \
@@ -23,6 +24,7 @@ static void _delRouteByNexthop (uint8_t next_hop)
 				&& _routes[i].state == Valid)
 			_routes[i].state = Invalid;
 	}
+	NRF_LOG_DBG("DEL nh: 0x%02x", next_hop);
 	taskEXIT_CRITICAL();
 }
 
@@ -57,22 +59,33 @@ static void _delRouteByDest (uint8_t dest)
 
 static bool isNeedUpdate(uint8_t old_hop, uint8_t new_hop, uint8_t old_hop_count, uint8_t new_hop_count)
 {
-	if (!(_LinkQuality[new_hop].valid && _LinkQuality[old_hop].valid))
-		return true;
-	if (old_hop == new_hop)
-		return true;
-	if (_LinkQuality[old_hop].quality < RSSI_WEAK2_THRESHOLD
-			&& _LinkQuality[new_hop].quality - _LinkQuality[old_hop].quality > RSSI_DIFF2_THRESHOLD) {
-			return true;
-	} else if (_LinkQuality[old_hop].quality < RSSI_WEAK1_THRESHOLD
-			&& _LinkQuality[new_hop].quality - _LinkQuality[old_hop].quality > RSSI_DIFF1_THRESHOLD) {
-			return true;
-	} else if (_LinkQuality[old_hop].quality < RSSI_WEAK0_THRESHOLD
-			&& _LinkQuality[new_hop].quality - _LinkQuality[old_hop].quality > RSSI_DIFF0_THRESHOLD) {
-			return true;
-	} else if (_LinkQuality[new_hop].quality > RSSI_WEAK0_THRESHOLD && new_hop_count < old_hop_count) {
+	int16_t i,j;
+
+	if (!(_LinkQuality[new_hop].valid && _LinkQuality[old_hop].valid)) {
+		NRF_LOG_DBG("Y0");
 		return true;
 	}
+	
+	i = _LinkQuality[old_hop].quality; j = _LinkQuality[new_hop].quality;
+	NRF_LOG_DBG("oldhop: 0x%02x(%d), newhop: 0x%02x(%d)", old_hop, i, new_hop, j);
+
+	if (i < RSSI_WEAK2_THRESHOLD
+			&& j - i > RSSI_DIFF2_THRESHOLD) {
+			NRF_LOG_DBG("Y1");
+			return true;
+	} else if (i < RSSI_WEAK1_THRESHOLD
+			&& j - i > RSSI_DIFF1_THRESHOLD) {
+			NRF_LOG_DBG("Y2");
+			return true;
+	} else if (i < RSSI_WEAK0_THRESHOLD
+			&& j - i > RSSI_DIFF0_THRESHOLD) {
+			NRF_LOG_DBG("Y3");
+			return true;
+	} else if (j > RSSI_WEAK0_THRESHOLD && new_hop_count < old_hop_count) {
+		NRF_LOG_DBG("Y4");
+		return true;
+	}
+	NRF_LOG_DBG("N0");
 	return false;
 }
 
@@ -80,45 +93,57 @@ static void _updateRoute (uint8_t dest, uint8_t next_hop, uint8_t hops)
 {
 	taskENTER_CRITICAL();
 	uint8_t i;
-	do {
-		for (i = 0; i < ROUTING_TABLE_SIZE; i++)
-		{
-			if (_routes[i].dest == dest && _routes[i].state == Valid
-					&& isNeedUpdate(_routes[i].next_hop, next_hop, _routes[i].hops, hops))
-			{
-				_routes[i].next_hop = next_hop;
-				_routes[i].hops = hops;
-				break;
-			}
-		}
 
-		for (i = 0; i < ROUTING_TABLE_SIZE; i++)
+	if (dest == Route.getNetAddr())
+		goto out;
+	
+	for (i = 0; i < ROUTING_TABLE_SIZE; i++)
+	{
+		if ( _routes[i].dest == dest && _routes[i].state == Valid) 
 		{
-			if (_routes[i].state == Invalid)
-			{
-				_routes[i].dest = dest;
-				_routes[i].next_hop = next_hop;
-				_routes[i].state = Valid;
+			if (_routes[i].next_hop == next_hop) {
 				_routes[i].hops = hops;
-				break;
+				goto out; /* It is the same Route entry */
 			}
+			
+			if ( isNeedUpdate(_routes[i].next_hop, next_hop, _routes[i].hops, hops)) {
+				NRF_LOG_DBG("UPDATE! dst: 0x%02x, nh: 0x%02x, hop: %d", dest, next_hop, hops);
+				_routes[i].next_hop = next_hop;
+				_routes[i].hops = hops;
+			}
+			goto out;
 		}
+	}
 
-		// Need to make room for a new one
-		DELETE_ROUTE(0);
-		// Should be an invalid slot now
-		for (i = 0; i < ROUTING_TABLE_SIZE; i++)
+	for (i = 0; i < ROUTING_TABLE_SIZE; i++)
+	{
+		if (_routes[i].state == Invalid)
 		{
-			if (_routes[i].state == Invalid)
-			{
-				_routes[i].dest = dest;
-				_routes[i].next_hop = next_hop;
-				_routes[i].state = Valid;
-				_routes[i].hops = hops;
-				break;
-			}
+			NRF_LOG_DBG("NEW! dst: 0x%02x, nh: 0x%02x, hop: %d", dest, next_hop, hops);
+			_routes[i].dest = dest;
+			_routes[i].next_hop = next_hop;
+			_routes[i].state = Valid;
+			_routes[i].hops = hops;
+			goto out;
 		}
-	} while (0);
+	}
+
+	// Need to make room for a new one
+	DELETE_ROUTE(0);
+	// Should be an invalid slot now
+	for (i = 0; i < ROUTING_TABLE_SIZE; i++)
+	{
+		if (_routes[i].state == Invalid)
+		{
+			NRF_LOG_DBG("NEW! dst: 0x%02x, nh: 0x%02x, hop: %d", dest, next_hop, hops);
+			_routes[i].dest = dest;
+			_routes[i].next_hop = next_hop;
+			_routes[i].state = Valid;
+			_routes[i].hops = hops;
+			goto out;
+		}
+	}
+out:
 	taskEXIT_CRITICAL();
 }
 
@@ -126,9 +151,11 @@ static int8_t _getRouteTo (uint8_t dest) {
 	uint8_t i;
 	for (i = 0; i<ROUTING_TABLE_SIZE; i++) {
 		if (_routes[i].dest == dest && _routes[i].state != Invalid) {
+				NRF_LOG_DBG("Route found! dst: 0x%02x, nh: 0x%02x", dest, _routes[i].next_hop);
 				return _routes[i].next_hop;
 		}
 	}
+	NRF_LOG_DBG("Route fail! dst: 0x%02x", dest);
 	return -1; /* No route to host */
 }
 
@@ -146,9 +173,17 @@ static void _clearRoutingTable (void) {
 		_routes[i].state = Invalid;
 }
 
+static void _clearLinkQuailtyMap(void) {
+	uint8_t i;
+	for (i = 0; i< 255; i++) {
+		_LinkQuality[i].valid = false;
+	}
+}
+
 static void _initRouteTable (Addr_t *addr) {
 	_addr.mac = addr->mac;
 	_addr.net = addr->net;
+	_clearLinkQuailtyMap();
 	Route.clearRoutingTable();
 }
 

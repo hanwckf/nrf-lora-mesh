@@ -98,5 +98,6 @@ typedef struct {
 #define SIZE_DATA		((SIZE_HDR)+sizeof(AppPayload))
 #define SIZE_RA			((SIZE_HDR)+sizeof(RoutePayload))
 #define SIZE_PING		((SIZE_HDR)+(0))
+#define SIZE_DATA_ACK	((SIZE_HDR)+(0))
 
 #endif

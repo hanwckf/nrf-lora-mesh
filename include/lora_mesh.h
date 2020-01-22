@@ -42,12 +42,8 @@ extern uint32_t net_tx_cnt;
 extern uint32_t net_rx; /* L3 rx count */
 extern uint32_t net_rx_drop; /* L3 drop count */
 extern uint32_t net_fwd; /* routed pkg count */
-extern uint32_t net_tx_ack;
+extern uint32_t net_tx_ack_ok;
 extern uint32_t net_tx_ack_fail;
-
-#ifdef __CC_ARM
-#pragma anon_unions
-#endif
 
 typedef struct {
 	void (* macRxStart) (void);
@@ -65,10 +61,8 @@ typedef struct {
 } lora_net_hook;
 
 typedef struct {
-	union {
-		lora_net_hook net_hooks;
-		lora_mac_hook mac_hooks;
-	};
+	lora_net_hook net_hooks;
+	lora_mac_hook mac_hooks;
 } mac_net_param_t;
 
 #endif

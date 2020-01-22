@@ -26,10 +26,10 @@ void SX126xIoInit
 	nrf_gpio_cfg_output(SX126x.NSS);
 	
 	nrf_drv_spi_config_t spi_config = NRF_DRV_SPI_DEFAULT_CONFIG;
-	spi_config.frequency      = NRF_DRV_SPI_FREQ_8M;
-	spi_config.miso_pin       = spi_miso;
-	spi_config.mosi_pin       = spi_mosi;
-	spi_config.sck_pin        = spi_sck;
+	spi_config.frequency	  = NRF_DRV_SPI_FREQ_8M;
+	spi_config.miso_pin	   = spi_miso;
+	spi_config.mosi_pin	   = spi_mosi;
+	spi_config.sck_pin		= spi_sck;
 	APP_ERROR_CHECK(nrf_drv_spi_init(&spi, &spi_config, NULL, NULL));
 	SX126x.Spi = spi;
 }
@@ -47,89 +47,89 @@ void SX126xIoDeInit( void ) { }
 
 void SX126xReset( void )
 {
-    DelayMs( 10 );
-    nrf_gpio_pin_write( SX126x.Reset, 0 );
-    DelayMs( 20 );
-    nrf_gpio_pin_write( SX126x.Reset, 1 );
-    DelayMs( 10 );
+	DelayMs( 10 );
+	nrf_gpio_pin_write( SX126x.Reset, 0 );
+	DelayMs( 20 );
+	nrf_gpio_pin_write( SX126x.Reset, 1 );
+	DelayMs( 10 );
 }
 
 
 void SX126xWakeup( void )
 {
 
-    nrf_gpio_pin_write(SX126x.NSS, 0 );
+	nrf_gpio_pin_write(SX126x.NSS, 0 );
 	
 	uint8_t cmd[] = { RADIO_GET_STATUS, 0x0 };
-    nrf_drv_spi_transfer( &SX126x.Spi, cmd, sizeof(cmd), NULL, 0 );
+	nrf_drv_spi_transfer( &SX126x.Spi, cmd, sizeof(cmd), NULL, 0 );
 
-    nrf_gpio_pin_write(SX126x.NSS, 1 );
+	nrf_gpio_pin_write(SX126x.NSS, 1 );
 
-    // Wait for chip to be ready.
-    SX126xWaitOnBusy( );
+	// Wait for chip to be ready.
+	SX126xWaitOnBusy( );
 
 }
 
 void SX126xWriteCommand( RadioCommands_t command, uint8_t *buffer, uint16_t size )
 {
-    SX126xCheckDeviceReady( );
+	SX126xCheckDeviceReady( );
 
-    nrf_gpio_pin_write( SX126x.NSS, 0 );
+	nrf_gpio_pin_write( SX126x.NSS, 0 );
 
-    nrf_drv_spi_transfer( &SX126x.Spi, (uint8_t *)&command, 1, NULL, 0 );
+	nrf_drv_spi_transfer( &SX126x.Spi, (uint8_t *)&command, 1, NULL, 0 );
 
 	nrf_drv_spi_transfer( &SX126x.Spi, buffer, size, NULL, 0 );
 
-    nrf_gpio_pin_write( SX126x.NSS, 1 );
+	nrf_gpio_pin_write( SX126x.NSS, 1 );
 
-    if( command != RADIO_SET_SLEEP )
-    {
-        SX126xWaitOnBusy( );
-    }
+	if( command != RADIO_SET_SLEEP )
+	{
+		SX126xWaitOnBusy( );
+	}
 }
 
 void SX126xReadCommand( RadioCommands_t command, uint8_t *buffer, uint16_t size )
 {
-    SX126xCheckDeviceReady( );
+	SX126xCheckDeviceReady( );
 
-    nrf_gpio_pin_write( SX126x.NSS, 0 );
+	nrf_gpio_pin_write( SX126x.NSS, 0 );
 	
 	uint8_t cmd[] = { command, 0 };
 	
-    nrf_drv_spi_transfer( &SX126x.Spi, cmd, sizeof(cmd), NULL, 0 );
+	nrf_drv_spi_transfer( &SX126x.Spi, cmd, sizeof(cmd), NULL, 0 );
 
 	nrf_drv_spi_transfer(&SX126x.Spi, NULL, 0, buffer, size);
 
-    nrf_gpio_pin_write( SX126x.NSS, 1 );
+	nrf_gpio_pin_write( SX126x.NSS, 1 );
 
-    SX126xWaitOnBusy( );
+	SX126xWaitOnBusy( );
 }
 
 void SX126xWriteRegisters( uint16_t address, uint8_t *buffer, uint16_t size )
 {
-    SX126xCheckDeviceReady( );
+	SX126xCheckDeviceReady( );
 
-    nrf_gpio_pin_write( SX126x.NSS, 0 );
+	nrf_gpio_pin_write( SX126x.NSS, 0 );
 	
-    uint8_t cmd[] = { RADIO_WRITE_REGISTER, ( address & 0xFF00 ) >> 8, address & 0x00FF };
+	uint8_t cmd[] = { RADIO_WRITE_REGISTER, ( address & 0xFF00 ) >> 8, address & 0x00FF };
 	
 	nrf_drv_spi_transfer(&SX126x.Spi, cmd, sizeof(cmd), NULL, 0);
 
 	nrf_drv_spi_transfer(&SX126x.Spi, buffer, size, NULL, 0);
 
-    nrf_gpio_pin_write( SX126x.NSS, 1 );
+	nrf_gpio_pin_write( SX126x.NSS, 1 );
 
-    SX126xWaitOnBusy( );
+	SX126xWaitOnBusy( );
 }
 
 void SX126xWriteRegister( uint16_t address, uint8_t value )
 {
-    SX126xWriteRegisters( address, &value, 1 );
+	SX126xWriteRegisters( address, &value, 1 );
 }
 
 void SX126xReadRegisters( uint16_t address, uint8_t *buffer, uint16_t size )
 {
-    SX126xCheckDeviceReady( );
+	SX126xCheckDeviceReady( );
 
 	nrf_gpio_pin_write( SX126x.NSS, 0 );
 	
@@ -140,54 +140,54 @@ void SX126xReadRegisters( uint16_t address, uint8_t *buffer, uint16_t size )
 
 	nrf_gpio_pin_write( SX126x.NSS, 1 );
 	
-    SX126xWaitOnBusy( );
+	SX126xWaitOnBusy( );
 }
 
 uint8_t SX126xReadRegister( uint16_t address )
 {
-    uint8_t data;
-    SX126xReadRegisters( address, &data, 1 );
-    return data;
+	uint8_t data;
+	SX126xReadRegisters( address, &data, 1 );
+	return data;
 }
 
 void SX126xWriteBuffer( uint8_t offset, uint8_t *buffer, uint8_t size )
 {
-    SX126xCheckDeviceReady( );
+	SX126xCheckDeviceReady( );
 
-    nrf_gpio_pin_write( SX126x.NSS, 0 );
+	nrf_gpio_pin_write( SX126x.NSS, 0 );
 	
 	uint8_t cmd[] = {RADIO_WRITE_BUFFER, offset};
 	nrf_drv_spi_transfer(&SX126x.Spi, cmd, sizeof(cmd), NULL, 0);
 
 	nrf_drv_spi_transfer(&SX126x.Spi, buffer, size, NULL ,0 );
 	
-    nrf_gpio_pin_write( SX126x.NSS, 1 );
-    SX126xWaitOnBusy( );
+	nrf_gpio_pin_write( SX126x.NSS, 1 );
+	SX126xWaitOnBusy( );
 }
 
 void SX126xReadBuffer( uint8_t offset, uint8_t *buffer, uint8_t size )
 {
-    SX126xCheckDeviceReady( );
+	SX126xCheckDeviceReady( );
 
-    nrf_gpio_pin_write( SX126x.NSS, 0 );
+	nrf_gpio_pin_write( SX126x.NSS, 0 );
 	
 	uint8_t cmd[] = {RADIO_READ_BUFFER, offset, 0x0};
 	nrf_drv_spi_transfer(&SX126x.Spi, cmd, sizeof(cmd), NULL, 0);
 
 	nrf_drv_spi_transfer(&SX126x.Spi, NULL, 0, buffer, size);
 		
-    nrf_gpio_pin_write( SX126x.NSS, 1 );
+	nrf_gpio_pin_write( SX126x.NSS, 1 );
 
-    SX126xWaitOnBusy( );
+	SX126xWaitOnBusy( );
 }
 
 void SX126xSetRfTxPower( int8_t power )
 {
-    SX126xSetTxParams( power, RADIO_RAMP_40_US );
+	SX126xSetTxParams( power, RADIO_RAMP_40_US );
 }
 
 bool SX126xCheckRfFrequency( uint32_t frequency )
 {
-    // Implement check. Currently all frequencies are supported
-    return true;
+	// Implement check. Currently all frequencies are supported
+	return true;
 }

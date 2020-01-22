@@ -1,3 +1,4 @@
+#define DEBUG_LOG
 #include "app_util_platform.h"
 #include "nrf_gpio.h"
 #include "nrf_delay.h"
@@ -40,10 +41,11 @@ void dio_irq_handle ( nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t action )
 #define APP_TX(p, queue, timeout) \
 	do { \
 		p.Header.NetHeader.hop = 0; \
+		p.Header.NetHeader.src = Route.getNetAddr(); \
 		xQueueSend(queue, &p, 0); \
 	} while (0)
 
-#define UPLOAD_PERIOD_MS		2000
+#define UPLOAD_PERIOD_MS		5000
 
 #define VOLT_DIV				2
 #define ADC_FULL_SCALE			3
@@ -113,13 +115,13 @@ static void app_ping_task (void * pvParameter)
 		{
 			p.Header.NetHeader.dst = ping_dst = ping_req.ping_dest;
 			
-			time = (xTaskGetTickCount() >> 10 ) * 1000;
+			time = (xTaskGetTickCount() * 1000) >> 10 ;
 			APP_TX(p, net_tx_buf, 0);
 			
 			ret = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(PING_TIMEOUT));
 			
 			if (ret != 0) {
-				time = (uint16_t) (((xTaskGetTickCount() >> 10 ) * 1000) - time);
+				time = (uint16_t) (((xTaskGetTickCount() * 1000) >> 10) - time);
 			} else {
 				time = -1;
 			}
@@ -143,9 +145,8 @@ static void app_ping_task (void * pvParameter)
 
 static void print_data (LoRaPkg *p)
 {
-	NRF_LOG("DATA recv!");
-	NRF_LOG("Temp: %d, Vcc: %d mV", (int)p->AppData.temp, p->AppData.volt);
-	NRF_LOG("Rssi: %d, Snr: %d, SignalRssi: %d", p->stat.RssiPkt, p->stat.SnrPkt, p->stat.SignalRssiPkt);
+	NRF_LOG("from: 0x%02x, Temp: %d, Vcc: %d mV", p->Header.NetHeader.src ,(int)p->AppData.temp, p->AppData.volt);
+	NRF_LOG("from: 0x%02x, Rssi: %d, Snr: %d, SignalRssi: %d", p->Header.NetHeader.src, p->stat.RssiPkt, p->stat.SnrPkt, p->stat.SignalRssiPkt);
 }
 
 static void print_pingret (LoRaPkg *p)
@@ -208,7 +209,7 @@ static TaskHandle_t app_recv_handle;
 static void app_recv_task (void * pvParameter)
 {
 	LoRaPkg p; uint8_t type;
-	
+
 	while (1) {
 		if ( xQueueReceive(net_rx_buf, &p, portMAX_DELAY) == pdPASS )
 		{
@@ -263,10 +264,11 @@ static void app_stat_task ( void * pvParameter)
 			APP_TX(t, net_tx_buf, 0);
 		}
 #ifdef PRINT_STAT_LOCAL
-		NRF_LOG("Time: %d", (xTaskGetTickCount() >> 10) * 1000);
-		NRF_LOG("CAD det/done: %d, %d", mac_cad_det, mac_cad_done);
-		NRF_LOG("Rx err/timeout/done: %d, %d, %d", mac_rx_err, mac_rx_timeout, mac_rx_done);
-		NRF_LOG("Tx done: %d", mac_tx_done);
+		NRF_LOG("Time: %d", (xTaskGetTickCount() * 1000) >> 10);
+		NRF_LOG("MAC CAD det/done: %d, %d", mac_cad_det, mac_cad_done);
+		NRF_LOG("MAC Rx err/timeout/done: %d, %d, %d", mac_rx_err, mac_rx_timeout, mac_rx_done);
+		NRF_LOG("MAC Tx done: %d", mac_tx_done);
+		NRF_LOG("NET ack done: %d, NET ack failed: %d", net_tx_ack_ok, net_tx_ack_fail);
 #endif
 	}
 }
@@ -325,10 +327,10 @@ int main(void)
 	SX126xConfigureCad(CAD_SYMBOL_NUM, CAD_DET_PEAK, CAD_DET_MIN, 0);
 	
 	RadioStatus_t status = SX126xGetStatus();
-	if (status.Fields.ChipMode == MODE_STDBY_RC) {
+	if (status.Fields.ChipMode == 0x2) {
 		NRF_LOG("sx126x status: STDBY_RC");
 	} else {
-		NRF_LOG("sx126x status: 0x%02x", status.Value);
+		NRF_LOG("sx126x mode: 0x%02x", status.Fields.ChipMode);
 	}
 	
 	RadioError_t err = SX126xGetDeviceErrors();
@@ -376,7 +378,7 @@ int main(void)
 			xTaskCreate(lora_net_rx_task, "lora_net_rx", configMINIMAL_STACK_SIZE + 200, &param, 2, &lora_net_rx_handle);
 			if (NRF_UICR->CUSTOMER[1] == 0x1) {
 				/* ping to id 0x2 and 0x3 periodly */
-				xTaskCreate(app_gw_task, "app_gw", configMINIMAL_STACK_SIZE + 100, NULL, 1, &app_gw_handle);
+				//xTaskCreate(app_gw_task, "app_gw", configMINIMAL_STACK_SIZE + 100, NULL, 1, &app_gw_handle);
 			} else {
 				xTaskCreate(app_upload_task, "app_upload", configMINIMAL_STACK_SIZE + 100, NULL, 1, &app_upload_handle);
 			}

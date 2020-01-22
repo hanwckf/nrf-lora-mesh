@@ -8527,7 +8527,7 @@
 // <i> longer one will be fragmented.
 
 #ifndef NRF_LOG_BACKEND_UART_TEMP_BUFFER_SIZE
-#define NRF_LOG_BACKEND_UART_TEMP_BUFFER_SIZE 64
+#define NRF_LOG_BACKEND_UART_TEMP_BUFFER_SIZE 128
 #endif
 
 // </e>
@@ -8589,7 +8589,7 @@
 // <16384=> 16384 
 
 #ifndef NRF_LOG_BUFSIZE
-#define NRF_LOG_BUFSIZE 1024
+#define NRF_LOG_BUFSIZE 4096
 #endif
 
 // <q> NRF_LOG_CLI_CMDS  - Enable CLI commands for the module.
