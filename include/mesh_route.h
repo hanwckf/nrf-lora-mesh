@@ -46,6 +46,7 @@ typedef struct {
 
 extern const MeshRoute_t Route;
 
+#ifdef DEBUG_ROUTE
 extern RouteTableEntry _routes[];
 extern LinkQualityEntry _LinkQuality[];
 
@@ -65,5 +66,9 @@ extern LinkQualityEntry _LinkQuality[];
 				NRF_LOG_DBG("LinkQMap[0x%02x]: %d", _y, _LinkQuality[_y].quality); \
 		} \
 	} while (0)
+#else
+#define PRINT_ROUTE_TABLE
+#define PRINT_LINKQUALITY_MAP
+#endif
 
 #endif

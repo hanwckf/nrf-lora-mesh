@@ -1,4 +1,6 @@
 #define DEBUG_LOG
+#define DEBUG_ROUTE
+
 #include "stdlib.h"
 #include "sx126x_board.h"
 #include "radio.h"
@@ -47,9 +49,8 @@ void mac_peek_pkg (LoRaPkg* p)
 	uint8_t i,j;
 	/* update link quality hashmap */
 	Route.updateLinkQualityMap(p->Header.MacHeader.src, p->stat.RssiPkt);
-#ifdef DEBUG_LOG
+
 	PRINT_LINKQUALITY_MAP;
-#endif
 
 	Route.updateRoute(p->Header.NetHeader.src,
 		p->Header.MacHeader.src, p->Header.NetHeader.hop);
@@ -96,18 +97,21 @@ void mac_peek_pkg (LoRaPkg* p)
 			}
 		}
 	}
-#ifdef DEBUG_LOG
+
 	PRINT_ROUTE_TABLE;
-#endif
+
 }
+
+extern uint8_t ack_wait_id;
+extern uint32_t ack_time;
 
 int8_t mac_rx_handle(LoRaPkg* p)
 {
-	uint8_t dst = p->Header.MacHeader.dst;
+	uint8_t mac_dst = p->Header.MacHeader.dst;
 	mac_peek_pkg(p);
 	LoRaPkg t;
-	if (dst == Route.getMacAddr() || dst == MAC_BROADCAST_ADDR) {
-		if (dst != MAC_BROADCAST_ADDR && p->Header.type == TYPE_DATA
+	if (mac_dst == Route.getMacAddr() || mac_dst == MAC_BROADCAST_ADDR) {	
+		if (mac_dst != MAC_BROADCAST_ADDR && p->Header.type == TYPE_DATA
 			&& p->Header.NetHeader.ack == ACK
 			&& p->Header.NetHeader.dst != NET_BROADCAST_ADDR)
 		{
@@ -115,11 +119,25 @@ int8_t mac_rx_handle(LoRaPkg* p)
 			GEN_ACK(t, p);
 			xQueueSend(mac_tx_buf, &t, 0);
 		}
+		
+		if (p->Header.NetHeader.dst == Route.getNetAddr() && p->Header.type == TYPE_DATA_ACK)
+		{
+			NRF_LOG_DBG_TIME("recv: TYPE_DATA_ACK");
+			NRF_LOG_DBG("recv pid: %d, wait pid: %d", p->Header.NetHeader.pid, ack_wait_id);
+			if (p->Header.NetHeader.pid == ack_wait_id) {
+				NRF_LOG_DBG("ack notify!");
+				NRF_LOG_DBG("ACK wait: %d", RTOS_TIME - ack_time);
+				xTaskNotifyGive(lora_net_tx_handle);
+			} else {
+				NRF_LOG_DBG("ack ignore!");
+			}
+			return 0;
+		}
+		
 		NRF_LOG_DBG("L2: recv in!");
 		xQueueSend(mac_rx_buf, p, 0);
 		return 0;
 	} else {
-		//NRF_LOG_DBG("L2: mac drop!");
 		return -1;
 	}
 }
@@ -216,12 +234,11 @@ void lora_mac_task(void * pvParameter)
 				//NRF_LOG_DBG("CAD not detected!");
 				/* cad not detected, check whether phy_tx_buf is empty, then check tx timer */
 				if ( uxQueueMessagesWaiting(mac_tx_buf) != 0 ) {
-					//NRF_LOG_DBG("phy_tx_buf is not empty!")
 					/* phy_tx_buf is not empty */
 					/* check whether tx timer timeout */
 					if ( tx_timer == 0 && xQueueReceive(mac_tx_buf, &txtmp, 0) == pdPASS ) {
 						/* tx timer is timeout, reset timer counter */
-						tx_timer = (xTaskGetTickCount() & TX_TIMER_MASK ) + 1;
+						tx_timer = (xTaskGetTickCount() & TX_TIMER_MASK );
 
 						/* determin the actual size to send */
 						switch ( (uint8_t)txtmp.Header.type ) {

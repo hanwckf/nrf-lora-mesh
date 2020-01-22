@@ -1,4 +1,5 @@
 #define DEBUG_LOG
+
 #include "stdlib.h"
 #include "sx126x_board.h"
 #include "radio.h"
@@ -33,7 +34,7 @@ static void ra_handle(LoRaPkg* p, lora_net_hook *hook);
 
 TaskHandle_t lora_net_tx_handle;
 
-static uint8_t ack_wait_id = 0;
+uint8_t ack_wait_id = 0;
 static uint8_t ra_pid = 0;
 
 static int16_t last_seen_pid[255];
@@ -73,16 +74,6 @@ static int16_t last_ra[255];
 		q.Header.NetHeader.ack = ACK; \
 	} while (0)
 
-#define GEN_ACK(q, p) \
-	do { \
-		q.Header.type = TYPE_DATA_ACK; \
-		q.Header.MacHeader.dst = p.Header.MacHeader.src; \
-		q.Header.NetHeader.src = Route.getNetAddr(); \
-		q.Header.NetHeader.dst = p.Header.NetHeader.src; \
-		q.Header.NetHeader.hop = 0; \
-		q.Header.NetHeader.pid = p.Header.NetHeader.pid; \
-	} while (0)
-
 #define ACK_TIMEOUT 1000
 #define ACK_MAX 3
 
@@ -118,7 +109,7 @@ void lora_net_tx_task (void * pvParameter)
 			/* check dst addr is not local addr */
 			if (p.Header.NetHeader.dst == Route.getNetAddr())
 				continue;
-			NRF_LOG_DBG("==>");
+			
 			/* situation 1: NET unicast with MAC broadcast will be forwarded by nodes, eg. RA pkgs 
 			   situation 2: NET broadcast with MAC unicast is the same as NET unicast with MAC unicast
 			   situation 3: NET broadcast with MAC broadcast and will not be forwarded by any node, 
@@ -158,7 +149,6 @@ void lora_net_tx_task (void * pvParameter)
 					}
 				}
 			}
-			NRF_LOG_DBG("<==");
 		}
 	}
 }
@@ -176,20 +166,9 @@ void lora_net_rx_task (void * pvParameter)
 	while (1) {
 		if ( xQueueReceive(mac_rx_buf, &p, portMAX_DELAY) == pdPASS)
 		{
-			NRF_LOG_DBG("==>");
 			NRF_LOG_DBG("nsrc: 0x%02x, ndst: 0x%02x, msrc: 0x%02x", 
 				p.Header.NetHeader.src, p.Header.NetHeader.dst, p.Header.MacHeader.src);
-			/*
-			if (p.Header.type == TYPE_DATA
-				&& p.Header.NetHeader.ack == ACK
-				&& p.Header.MacHeader.dst != MAC_BROADCAST_ADDR
-				&& p.Header.NetHeader.dst != NET_BROADCAST_ADDR)
-			{
-				NRF_LOG_DBG_TIME("send ack! pid: %d", p.Header.NetHeader.pid);
-				GEN_ACK(t, p);
-				NET_TX(&t, mac_tx_buf, portMAX_DELAY, hook);
-			}
-			*/
+
 			if (p.Header.NetHeader.dst == Route.getNetAddr()
 					|| p.Header.NetHeader.dst == NET_BROADCAST_ADDR) {
 				switch((uint8_t)p.Header.type) {
@@ -209,30 +188,20 @@ void lora_net_rx_task (void * pvParameter)
 						}
 						NET_RX(&p, net_rx_buf, 0, hook);
 						break;
-					case TYPE_DATA_ACK: /* It must be unicast */
-						/* check pid */
-						NRF_LOG_DBG_TIME("recv: TYPE_DATA_ACK");
-						NRF_LOG_DBG("recv pid: %d, wait pid: %d", p.Header.NetHeader.pid, ack_wait_id);
-						if (p.Header.NetHeader.pid == ack_wait_id) {
-							NRF_LOG_DBG("ack notify!");
-							NRF_LOG_DBG("ACK wait: %d", RTOS_TIME - ack_time);
-							xTaskNotifyGive(lora_net_tx_handle);
-						}
+					case TYPE_DATA_ACK: /* already notify tx_task in mac layer */
 						break;
-					case TYPE_PING: /* It must be unicast */
+					case TYPE_PING: /* It cannot be processed in MAC layer! */
 						NRF_LOG_DBG("recv: TYPE_PING");
 						if (p.Header.NetHeader.ack == ACK_NO) {
-							NRF_LOG_DBG("send ping ack");
-							/* send pingack */
+							NRF_LOG_DBG("send ping ack"); /* send pingack */
 							GEN_PINGACK(t, p);
 							NET_TX(&t, net_tx_buf, portMAX_DELAY, hook);
 						} else {
-							NRF_LOG_DBG("recv: ping ack");
-							/* It is a pingack */
+							NRF_LOG_DBG("recv: ping ack"); /* It is a pingack */
 							NET_RX(&p, net_rx_buf, 0, hook);
 						}
 						break;
-					case TYPE_RA: /* It must be NET unicast (MAC broadcast), need to check hops in ra_handle */
+					case TYPE_RA: /* It must be NET unicast (MAC broadcast) */
 						NRF_LOG_DBG("recv: TYPE_RA");
 						ra_handle(&p, hook);
 						break;
@@ -242,10 +211,10 @@ void lora_net_rx_task (void * pvParameter)
 				/* It must be NET unicast, check hops */
 				if (p.Header.NetHeader.hop < MAX_HOPS ) {
 					NRF_LOG_DBG("forward, now hops: %d", p.Header.NetHeader.hop);
+					if (hook->netForward != NULL) hook->netForward();
+					net_fwd++;
 					if (p.Header.type != TYPE_RA || ra_forward(&p, hook)) {
 						NRF_LOG_DBG("forward: send to net_tx_buf");
-						if (hook->netForward != NULL) hook->netForward();
-						net_fwd++;
 						p.Header.NetHeader.hop++;
 						NET_TX(&p, net_tx_buf, portMAX_DELAY, hook);
 					}
@@ -255,7 +224,6 @@ void lora_net_rx_task (void * pvParameter)
 					net_rx_drop++;
 				}
 			}
-			NRF_LOG_DBG("<==");
 		}
 	}
 }
@@ -316,7 +284,9 @@ static bool ra_forward(LoRaPkg* p, lora_net_hook *hook)
 			}
 			NET_TX(p, mac_tx_buf, portMAX_DELAY, hook);
 			return false;
-		case SUB_RA_RESPON: break; /* already process in peek_msg */
+		case SUB_RA_RESPON: /* forward RA_RESPON, but prevent to increase hop count */
+			NET_TX(p, net_tx_buf, portMAX_DELAY, hook);
+			return false;
 		case SUB_RA_FAIL: break; /* TODO */
 		default: break;
 	}
