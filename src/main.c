@@ -145,8 +145,8 @@ static void app_ping_task (void * pvParameter)
 
 static void print_data (LoRaPkg *p)
 {
-	NRF_LOG("from: 0x%02x, Temp: %d, Vcc: %d mV", p->Header.NetHeader.src ,(int)p->AppData.temp, p->AppData.volt);
-	NRF_LOG("from: 0x%02x, Rssi: %d, Snr: %d, SignalRssi: %d", p->Header.NetHeader.src, p->stat.RssiPkt, p->stat.SnrPkt, p->stat.SignalRssiPkt);
+	NRF_LOG("NET from: 0x%02x, Temp: %d, Vcc: %d mV", p->Header.NetHeader.src ,(int)p->AppData.temp, p->AppData.volt);
+	NRF_LOG("MAC from: 0x%02x, Rssi: %d, Snr: %d", p->Header.MacHeader.src, p->stat.RssiPkt, p->stat.SnrPkt);
 }
 
 static void print_pingret (LoRaPkg *p)
@@ -356,7 +356,6 @@ int main(void)
 	app_stat_buf = xQueueCreate(8, sizeof(uint8_t));
 	
 	m_irq_Semaphore = xSemaphoreCreateBinary();
-	m_ack_Semaphore = xSemaphoreCreateBinary();
 	
 	NRF_LOG("LoRaPkg max size: %d", SIZE_PKG_MAX);
 	Addr_t addr;
@@ -371,7 +370,7 @@ int main(void)
 			break;
 		}
 
-		if ( net_tx_buf && net_rx_buf && mac_tx_buf && mac_rx_buf && app_ping_buf && app_stat_buf && m_irq_Semaphore && m_ack_Semaphore ) {
+		if ( net_tx_buf && net_rx_buf && mac_tx_buf && mac_rx_buf && app_ping_buf && app_stat_buf && m_irq_Semaphore ) {
 			xTaskCreate(lora_mac_task, "lora_mac", configMINIMAL_STACK_SIZE + 200, &param, 3, &lora_mac_handle);
 			
 			xTaskCreate(lora_net_tx_task, "lora_net_tx", configMINIMAL_STACK_SIZE + 200, &param, 2, &lora_net_tx_handle);
@@ -394,7 +393,7 @@ int main(void)
 			vTaskStartScheduler();
 		
 		} else {
-			NRF_LOG("ERROR! xQueueCreate() xSemaphoreCreateBinary() failed!");
+			NRF_LOG("ERROR! xQueueCreate() or xSemaphoreCreateBinary() failed!");
 			break;
 		}
 	} while (0);

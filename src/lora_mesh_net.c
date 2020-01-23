@@ -25,8 +25,6 @@ uint32_t net_tx_ack_fail;
 QueueHandle_t net_tx_buf;
 QueueHandle_t net_rx_buf;
 
-SemaphoreHandle_t m_ack_Semaphore;
-
 uint32_t ack_time;
 
 static bool ra_forward(LoRaPkg* p, lora_net_hook *hook);
@@ -284,7 +282,7 @@ static bool ra_forward(LoRaPkg* p, lora_net_hook *hook)
 			}
 			NET_TX(p, mac_tx_buf, portMAX_DELAY, hook);
 			return false;
-		case SUB_RA_RESPON: /* forward RA_RESPON, but prevent to increase hop count */
+		case SUB_RA_RESPON: /* forward RA_RESPON, but keep hop count */
 			NET_TX(p, net_tx_buf, portMAX_DELAY, hook);
 			return false;
 		case SUB_RA_FAIL: break; /* TODO */

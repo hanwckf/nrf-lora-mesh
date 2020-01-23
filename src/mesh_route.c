@@ -184,7 +184,7 @@ static void _initRouteTable (Addr_t *addr) {
 	_addr.mac = addr->mac;
 	_addr.net = addr->net;
 	_clearLinkQuailtyMap();
-	Route.clearRoutingTable();
+	_clearRoutingTable();
 }
 
 const MeshRoute_t Route = {

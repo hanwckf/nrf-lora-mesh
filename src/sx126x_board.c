@@ -26,9 +26,9 @@ void SX126xIoInit
 	nrf_gpio_cfg_output(SX126x.NSS);
 	
 	nrf_drv_spi_config_t spi_config = NRF_DRV_SPI_DEFAULT_CONFIG;
-	spi_config.frequency	  = NRF_DRV_SPI_FREQ_8M;
-	spi_config.miso_pin	   = spi_miso;
-	spi_config.mosi_pin	   = spi_mosi;
+	spi_config.frequency	= NRF_DRV_SPI_FREQ_8M;
+	spi_config.miso_pin		= spi_miso;
+	spi_config.mosi_pin		= spi_mosi;
 	spi_config.sck_pin		= spi_sck;
 	APP_ERROR_CHECK(nrf_drv_spi_init(&spi, &spi_config, NULL, NULL));
 	SX126x.Spi = spi;

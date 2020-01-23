@@ -26,7 +26,6 @@ extern QueueHandle_t net_tx_buf;
 extern QueueHandle_t net_rx_buf;
 
 extern SemaphoreHandle_t m_irq_Semaphore;
-extern SemaphoreHandle_t m_ack_Semaphore;
 
 extern uint32_t mac_cad_done;
 extern uint32_t mac_cad_det;

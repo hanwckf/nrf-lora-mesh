@@ -241,7 +241,7 @@ void lora_mac_task(void * pvParameter)
 						if (hdr_type < TYPE_MAX) {
 							pkgsize = pkgSizeMap[hdr_type][1];
 						} else {
-							pkgsize = SIZE_DATA;
+							pkgsize = SIZE_PKG_MAX;
 						}
 						
 						txtmp.Header.MacHeader.src = Route.getMacAddr();
