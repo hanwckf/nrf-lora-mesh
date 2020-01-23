@@ -27,22 +27,31 @@ extern QueueHandle_t net_rx_buf;
 
 extern SemaphoreHandle_t m_irq_Semaphore;
 
-extern uint32_t mac_cad_done;
-extern uint32_t mac_cad_det;
+/* phy layer counter */
+extern uint32_t phy_cad_done;
+extern uint32_t phy_cad_det;
+extern uint32_t phy_rx_done;
+extern uint32_t phy_rx_err;
+extern uint32_t phy_rx_timeout;
+extern uint32_t phy_tx_done;
+extern uint32_t phy_tx_err;
+
+/* mac layer counter */
 extern uint32_t mac_rx_done;
-extern uint32_t mac_rx_err;
-extern uint32_t mac_rx_timeout;
-extern uint32_t mac_rx_drop; /* L2 drop count */
+extern uint32_t mac_rx_drop;
 extern uint32_t mac_tx_done;
 extern uint32_t mac_tx_err;
-extern uint32_t mac_rx_peek;
+extern uint32_t mac_ack_respon;
 
-extern uint32_t net_tx_cnt;
-extern uint32_t net_rx; /* L3 rx count */
-extern uint32_t net_rx_drop; /* L3 drop count */
-extern uint32_t net_fwd; /* routed pkg count */
-extern uint32_t net_tx_ack_ok;
-extern uint32_t net_tx_ack_fail;
+/* net layer counter */
+extern uint32_t net_tx_ack_ok; /* net tx ack done */
+extern uint32_t net_tx_ack_fail; /* net tx ack fail */
+extern uint32_t net_tx_done; /* net tx done */
+extern uint32_t net_tx_drop; /* net tx drop (No route to host) */
+extern uint32_t net_rx_done; /* local rx done */
+extern uint32_t net_rx_drop; /* net rx drop */
+extern uint32_t net_fwd_done; /* forward done */
+extern uint32_t net_fwd_err; /* forward drop */
 
 typedef struct {
 	void (* macRxStart) (void);

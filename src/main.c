@@ -265,10 +265,10 @@ static void app_stat_task ( void * pvParameter)
 		}
 #ifdef PRINT_STAT_LOCAL
 		NRF_LOG("Time: %d", (xTaskGetTickCount() * 1000) >> 10);
-		NRF_LOG("MAC CAD det/done: %d, %d", mac_cad_det, mac_cad_done);
-		NRF_LOG("MAC Rx err/timeout/done: %d, %d, %d", mac_rx_err, mac_rx_timeout, mac_rx_done);
+		NRF_LOG("PHY CAD det/done: %d, %d", phy_cad_det, phy_cad_done);
+		NRF_LOG("PHY Rx err/timeout/done: %d, %d, %d", phy_rx_err, phy_rx_timeout, phy_rx_done);
 		NRF_LOG("MAC Tx done: %d", mac_tx_done);
-		NRF_LOG("NET ack done: %d, NET ack failed: %d", net_tx_ack_ok, net_tx_ack_fail);
+		NRF_LOG("NET Tx ack ok: %d, fail: %d", net_tx_ack_ok, net_tx_ack_fail);
 #endif
 	}
 }

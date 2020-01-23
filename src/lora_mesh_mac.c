@@ -17,15 +17,21 @@
 #include "lora_config.h"
 #include "mesh_route.h"
 
-uint32_t mac_cad_done;
-uint32_t mac_cad_det;
+/* phy layer counter */
+uint32_t phy_cad_done;
+uint32_t phy_cad_det;
+uint32_t phy_rx_done;
+uint32_t phy_rx_err;
+uint32_t phy_rx_timeout;
+uint32_t phy_tx_done;
+uint32_t phy_tx_err;
+
+/* mac layer counter */
 uint32_t mac_rx_done;
-uint32_t mac_rx_err;
-uint32_t mac_rx_timeout;
 uint32_t mac_rx_drop;
 uint32_t mac_tx_done;
 uint32_t mac_tx_err;
-uint32_t mac_rx_peek;
+uint32_t mac_ack_respon;
 
 QueueHandle_t mac_tx_buf;
 QueueHandle_t mac_rx_buf;
@@ -72,12 +78,12 @@ void mac_peek_pkg (LoRaPkg* p)
 		{
 			/* ignore RA from local */
 			if (p->Header.NetHeader.src == Route.getNetAddr())
-				return;
+				goto out;
 			
 			/* ignore RA already recv */
 			for (i=0; i < p->Header.NetHeader.hop; i++) {
 				if (p->RouteData.RA_List[i] == Route.getNetAddr())
-					return;
+					goto out;
 			}
 
 			for (i=0; i < p->Header.NetHeader.hop; i++) {
@@ -97,7 +103,7 @@ void mac_peek_pkg (LoRaPkg* p)
 			}
 		}
 	}
-
+out:
 	PRINT_ROUTE_TABLE;
 
 }
@@ -110,11 +116,13 @@ int8_t mac_rx_handle(LoRaPkg* p)
 	uint8_t mac_dst = p->Header.MacHeader.dst;
 	mac_peek_pkg(p);
 	LoRaPkg t;
-	if (mac_dst == Route.getMacAddr() || mac_dst == MAC_BROADCAST_ADDR) {	
+	if (mac_dst == Route.getMacAddr() || mac_dst == MAC_BROADCAST_ADDR) {
+		mac_rx_done++;
 		if (mac_dst != MAC_BROADCAST_ADDR && p->Header.type == TYPE_DATA
 			&& p->Header.NetHeader.ack == ACK
 			&& p->Header.NetHeader.dst != NET_BROADCAST_ADDR)
 		{
+			mac_ack_respon++;
 			NRF_LOG_DBG_TIME("send ack! pid: %d", p->Header.NetHeader.pid);
 			GEN_ACK(t, p);
 			xQueueSend(mac_tx_buf, &t, 0);
@@ -138,6 +146,7 @@ int8_t mac_rx_handle(LoRaPkg* p)
 		xQueueSend(mac_rx_buf, p, 0);
 		return 0;
 	} else {
+		mac_rx_drop++;
 		return -1;
 	}
 }
@@ -173,7 +182,7 @@ void lora_mac_task(void * pvParameter)
 		//NRF_LOG_DBG("irqReg: 0x%04x", irqRegs);
 		if (IS_IRQ(irqRegs, IRQ_CAD_DONE)) 
 		{
-			mac_cad_done++;
+			phy_cad_done++;
 			//NRF_LOG_DBG("CAD done!");
 			
 			if (hook->macCadDone != NULL) hook->macCadDone();
@@ -181,7 +190,7 @@ void lora_mac_task(void * pvParameter)
             if (IS_IRQ(irqRegs, IRQ_CAD_ACTIVITY_DETECTED)) 
 			{
 				//NRF_LOG_DBG("CAD detected, set Rx!");
-				mac_cad_det++;
+				phy_cad_det++;
 				if (hook->macCadDetect != NULL) hook->macCadDetect();
 				/* cad detected, set RX */
 				Radio.SetMaxPayloadLength( MODEM_LORA, 0xff );
@@ -195,17 +204,17 @@ void lora_mac_task(void * pvParameter)
 				
 				if ((IS_IRQ(irqRegs, IRQ_CRC_ERROR)) || (IS_IRQ(irqRegs, IRQ_HEADER_ERROR))) {
 					NRF_LOG_DBG("Rx error!");
-					mac_rx_err++;
+					phy_rx_err++;
 					/* rx error */
 				} else if (IS_IRQ(irqRegs, IRQ_RX_TX_TIMEOUT)) {
 					NRF_LOG_DBG("Rx timeout!");
-					mac_rx_timeout++;
+					phy_rx_timeout++;
 					/* rx timeout */
 				} else if (IS_IRQ(irqRegs, IRQ_RX_DONE)) {
 					/* get payload size, fill data, then enqueue phy_rx_buf */
 					SX126xGetPayload(pkgbuf, &pkgsize, 255);
 					NRF_LOG_DBG_TIME("Rx done, pkgsize: %d", pkgsize);
-					mac_rx_done++;
+					phy_rx_done++;
 					
 					hdr_type = (PkgType) (pkgbuf[0]);
 
@@ -218,8 +227,7 @@ void lora_mac_task(void * pvParameter)
 						rxtmp.stat.SignalRssiPkt = RadioPktStatus.Params.LoRa.SignalRssiPkt;
 						rxtmp.stat.SnrPkt = RadioPktStatus.Params.LoRa.SnrPkt;
 						
-						if (mac_rx_handle(&rxtmp) < 0)
-							mac_rx_drop++;
+						mac_rx_handle(&rxtmp);
 					}
 				} else {
 					NRF_LOG_DBG("Rx unknown error!");
