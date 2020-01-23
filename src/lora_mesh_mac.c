@@ -210,11 +210,7 @@ void lora_mac_task(void * pvParameter)
 					hdr_type = (PkgType) (pkgbuf[0]);
 
 					//NRF_LOG_HEX_DBG(pkgbuf, pkgsize);
-
-					if ((hdr_type == TYPE_DATA && pkgsize == SIZE_DATA) ||
-						(hdr_type == TYPE_PING && pkgsize == SIZE_PING) ||
-						(hdr_type == TYPE_RA && pkgsize == SIZE_RA) ||
-						(hdr_type == TYPE_DATA_ACK && pkgsize == SIZE_DATA_ACK))
+					if (hdr_type < TYPE_MAX && pkgsize == pkgSizeMap[hdr_type][1])
 					{
 						memcpy(&rxtmp, pkgbuf, pkgsize);
 						SX126xGetPacketStatus( &RadioPktStatus );
@@ -241,12 +237,11 @@ void lora_mac_task(void * pvParameter)
 						tx_timer = (xTaskGetTickCount() & TX_TIMER_MASK );
 
 						/* determin the actual size to send */
-						switch ( (uint8_t)txtmp.Header.type ) {
-							case TYPE_DATA: pkgsize = SIZE_DATA; break;
-							case TYPE_PING: pkgsize = SIZE_PING; break;
-							case TYPE_RA: pkgsize = SIZE_RA; break;
-							case TYPE_DATA_ACK: pkgsize = SIZE_DATA_ACK; break;
-							default: pkgsize = SIZE_DATA; break;
+						hdr_type = txtmp.Header.type;
+						if (hdr_type < TYPE_MAX) {
+							pkgsize = pkgSizeMap[hdr_type][1];
+						} else {
+							pkgsize = SIZE_DATA;
 						}
 						
 						txtmp.Header.MacHeader.src = Route.getMacAddr();

@@ -9,6 +9,7 @@ typedef enum {
 	TYPE_DATA_ACK,
 	TYPE_PING,
 	TYPE_RA,
+	TYPE_MAX,
 } PkgType;
 
 typedef enum {
@@ -99,5 +100,7 @@ typedef struct {
 #define SIZE_RA			((SIZE_HDR)+sizeof(RoutePayload))
 #define SIZE_PING		((SIZE_HDR)+(0))
 #define SIZE_DATA_ACK	((SIZE_HDR)+(0))
+
+extern const int8_t pkgSizeMap[][2];
 
 #endif

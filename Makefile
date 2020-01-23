@@ -18,6 +18,7 @@ SRC_FILES += \
   $(PROJ_DIR)/src/lora_mesh_mac.c \
   $(PROJ_DIR)/src/lora_mesh_net.c \
   $(PROJ_DIR)/src/mesh_route.c \
+  $(PROJ_DIR)/src/lora_pkg.c \
   $(PROJ_DIR)/src/radio.c \
   $(PROJ_DIR)/src/sx126x.c \
   $(PROJ_DIR)/src/sx126x_board.c \
