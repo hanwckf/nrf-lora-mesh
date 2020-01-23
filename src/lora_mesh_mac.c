@@ -208,7 +208,7 @@ void lora_mac_task(void * pvParameter)
 					phy_rx_err++;
 					/* rx error */
 				} else if (IS_IRQ(irqRegs, IRQ_RX_TX_TIMEOUT)) {
-					NRF_LOG_DBG("Rx timeout!");
+					NRF_LOG_DBG_TIME("Rx timeout!");
 					phy_rx_timeout++;
 					/* rx timeout */
 				} else if (IS_IRQ(irqRegs, IRQ_RX_DONE)) {
@@ -263,6 +263,9 @@ void lora_mac_task(void * pvParameter)
 						SET_RADIO(Radio.Send((uint8_t *)&txtmp, pkgsize, TX_TIMEOUT), irqRegs);
 						if (hook->macTxEnd != NULL) hook->macTxEnd();
 						//NRF_LOG_DBG("irqReg: 0x%04x", irqRegs);
+						
+						if (txtmp.Header.type == TYPE_DATA && txtmp.Header.NetHeader.ack == ACK)
+							xSemaphoreGive(m_ack_Semaphore);
 						
 						if (IS_IRQ(irqRegs, IRQ_TX_DONE)) {
 							NRF_LOG_DBG_TIME("Tx done");

@@ -26,6 +26,7 @@ extern QueueHandle_t net_tx_buf;
 extern QueueHandle_t net_rx_buf;
 
 extern SemaphoreHandle_t m_irq_Semaphore;
+extern SemaphoreHandle_t m_ack_Semaphore;
 
 /* phy layer counter */
 extern uint32_t phy_cad_done;

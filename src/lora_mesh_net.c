@@ -74,8 +74,10 @@ static int16_t _last_ra[255];
 		q.Header.NetHeader.ack = ACK; \
 	} while (0)
 
-#define ACK_TIMEOUT 1000
+#define ACK_TIMEOUT 800
 #define ACK_MAX 3
+
+SemaphoreHandle_t m_ack_Semaphore;
 
 static int8_t send_wait_ack(LoRaPkg* p, lora_net_hook* hook)
 {
@@ -83,7 +85,10 @@ static int8_t send_wait_ack(LoRaPkg* p, lora_net_hook* hook)
 	ack_time = RTOS_TIME;
 	do {
 		NRF_LOG_DBG_TIME("ack pid: %d, tries: %d", ack_wait_id, tries);
-		NET_TX(p, mac_tx_buf, portMAX_DELAY, hook); 
+		NET_TX(p, mac_tx_buf, portMAX_DELAY, hook);
+		/* wait semaphore for mac tx done, NOTE: only one ack-needed pkg in mac_tx_buf at a time */
+		xSemaphoreTake(m_ack_Semaphore, portMAX_DELAY);
+		ack_time = RTOS_TIME;
 		if ( ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(ACK_TIMEOUT)) != 0 )
 		{
 			net_tx_ack_ok++;

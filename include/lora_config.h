@@ -17,8 +17,8 @@
 #define CAD_DET_MIN                     10
 
 #define CAD_PERIOD_MS                   30
-#define RX_TIMEOUT                      120
-#define TX_TIMEOUT                      300
+#define RX_TIMEOUT                      100
+#define TX_TIMEOUT                      250
 #define TX_TIMER_MASK                   0x3 /* tx timer is between (0 ~ 3) * CAD_PERIOD_MS  */
 
 #endif
