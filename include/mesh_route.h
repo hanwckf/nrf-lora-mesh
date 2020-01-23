@@ -45,9 +45,9 @@ typedef struct {
 } MeshRoute_t;
 
 extern const MeshRoute_t Route;
+extern int16_t _last_seen_pid[];
 
 #ifdef DEBUG_ROUTE
-extern RouteTableEntry _routes[];
 extern LinkQualityEntry _LinkQuality[];
 
 #define PRINT_ROUTE_TABLE \

@@ -25,9 +25,9 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "nrfx_gpiote.h"
 #include "nrf_drv_spi.h"
 #include "compact.h"
-#include "nrfx_gpiote.h"
 
 #define SX1261                                      1
 #define SX1262                                      2

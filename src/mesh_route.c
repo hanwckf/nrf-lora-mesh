@@ -1,11 +1,12 @@
 #define DEBUG_LOG
+#define DEBUG_ROUTE
 #include "mesh_route.h"
 #include "compact.h"
 #include "FreeRTOS.h"
 #include "task.h"
 
 static Addr_t _addr;
-RouteTableEntry _routes[ROUTING_TABLE_SIZE];
+static RouteTableEntry _routes[ROUTING_TABLE_SIZE];
 LinkQualityEntry _LinkQuality[255];
 
 #define DELETE_ROUTE(index) \
@@ -25,6 +26,7 @@ static void _delRouteByNexthop (uint8_t next_hop)
 			_routes[i].state = Invalid;
 	}
 	NRF_LOG_DBG("DEL nh: 0x%02x", next_hop);
+	PRINT_ROUTE_TABLE;
 	taskEXIT_CRITICAL();
 }
 
@@ -45,6 +47,8 @@ static void _delRouteByDest (uint8_t dest)
 				&& _routes[i].state == Valid)
 			_routes[i].state = Invalid;
 	}
+	NRF_LOG_DBG("DEL dst: 0x%02x", dest);
+	PRINT_ROUTE_TABLE;
 	taskEXIT_CRITICAL();
 }
 
@@ -103,15 +107,18 @@ static void _updateRoute (uint8_t dest, uint8_t next_hop, uint8_t hops)
 		{
 			if (_routes[i].next_hop == next_hop) {
 				_routes[i].hops = hops;
-				goto out; /* It is the same Route entry */
+				goto out; /* It is the same Route entry, no update! */
 			}
 			
 			if ( isNeedUpdate(_routes[i].next_hop, next_hop, _routes[i].hops, hops)) {
 				NRF_LOG_DBG("UPDATE! dst: 0x%02x, nh: 0x%02x, hop: %d", dest, next_hop, hops);
 				_routes[i].next_hop = next_hop;
 				_routes[i].hops = hops;
+				goto updated;
+			} else {
+				goto out; /* no update! */
 			}
-			goto out;
+			
 		}
 	}
 
@@ -124,7 +131,7 @@ static void _updateRoute (uint8_t dest, uint8_t next_hop, uint8_t hops)
 			_routes[i].next_hop = next_hop;
 			_routes[i].state = Valid;
 			_routes[i].hops = hops;
-			goto out;
+			goto updated;
 		}
 	}
 
@@ -140,9 +147,11 @@ static void _updateRoute (uint8_t dest, uint8_t next_hop, uint8_t hops)
 			_routes[i].next_hop = next_hop;
 			_routes[i].state = Valid;
 			_routes[i].hops = hops;
-			goto out;
+			goto updated;
 		}
 	}
+updated:
+	PRINT_ROUTE_TABLE;
 out:
 	taskEXIT_CRITICAL();
 }
