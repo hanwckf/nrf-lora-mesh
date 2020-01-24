@@ -111,7 +111,7 @@ void lora_net_tx_task (void * pvParameter)
 	while (1) {
 		if ( xQueueReceive(net_tx_buf, &p, portMAX_DELAY) == pdPASS)
 		{
-			/* check dst addr is not local addr */
+			/* check dest addr is not local addr */
 			if (p.Header.NetHeader.dst == Route.getNetAddr())
 				continue;
 			
@@ -131,7 +131,7 @@ void lora_net_tx_task (void * pvParameter)
 				/* net unicast, findout next hop */
 				nexthop = Route.getRouteTo(p.Header.NetHeader.dst);
 				if (nexthop < 0) {
-					/* no nexthop, generate RA, and broadcast it */
+					/* no nexthop, broadcast RA */
 					/* RA with NET unicast and MAC broadcast */
 					net_tx_drop++;
 					GEN_RA(t, p.Header.NetHeader.dst);
@@ -182,7 +182,7 @@ void lora_net_rx_task (void * pvParameter)
 						NRF_LOG_DBG_TIME("recv: TYPE_DATA");
 						NET_RX(&p, net_rx_buf, 0, hook);
 						break;
-					case TYPE_DATA_ACK: /* already notify tx_task in mac layer */
+					case TYPE_DATA_ACK: /* already notify net_tx_task in mac layer */
 						break;
 					case TYPE_PING: /* It cannot be processed in MAC layer! */
 						NRF_LOG_DBG("recv: TYPE_PING");
@@ -250,7 +250,7 @@ static void ra_handle(LoRaPkg* p, lora_net_hook *hook)
 }
 
 /* return true: NEED to forward */
-/* return false: already enqueue to mac_tx_buf or ignored */
+/* return false: enqueue to mac_tx_buf or ignored */
 
 static bool ra_forward(LoRaPkg* p, lora_net_hook *hook)
 {
@@ -267,7 +267,7 @@ static bool ra_forward(LoRaPkg* p, lora_net_hook *hook)
 					return false;
 			}
 
-			/* add NetAddr to RA_List, then rebroadcast */
+			/* append NetAddr to RA_List, then rebroadcast */
 			p->RouteData.RA_List[p->Header.NetHeader.hop] = Route.getNetAddr();
 			p->Header.NetHeader.hop++;
 			NRF_LOG_DBG("RA: rebroadcast!");

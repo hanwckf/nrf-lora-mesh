@@ -80,7 +80,7 @@ void mac_peek_pkg (LoRaPkg* p)
 			if (p->Header.NetHeader.src == Route.getNetAddr())
 				return;
 			
-			/* ignore RA already recv */
+			/* ignore previous received RA */
 			for (i=0; i < p->Header.NetHeader.hop; i++) {
 				if (p->RouteData.RA_List[i] == Route.getNetAddr())
 					return;
@@ -238,7 +238,7 @@ void lora_mac_task(void * pvParameter)
 					/* phy_tx_buf is not empty */
 					/* check whether tx timer timeout */
 					if ( tx_timer == 0 && xQueueReceive(mac_tx_buf, &txtmp, 0) == pdPASS ) {
-						/* tx timer is timeout, reset timer counter */
+						/* tx timer timeout, reset timer counter */
 						tx_timer = (xTaskGetTickCount() & TX_TIMER_MASK );
 
 						/* determin the actual size to send */

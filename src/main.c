@@ -58,7 +58,7 @@ static TaskHandle_t app_upload_handle;
 static void app_upload_task (void * pvParameter)
 {
 	float volatile temp;
-	nrf_saadc_value_t ret;
+	nrf_saadc_value_t volt;
 	LoRaPkg p = {
 		.Header.type = TYPE_DATA,
 		.Header.NetHeader.dst = DST,
@@ -73,18 +73,18 @@ static void app_upload_task (void * pvParameter)
 		NRF_TEMP->EVENTS_DATARDY = 0;
 		temp = (nrf_temp_read() / 4);
 		NRF_TEMP->TASKS_STOP = 1;
-		nrf_drv_saadc_sample_convert(0, &ret);
-		NRF_LOG("Temp: %d, Vcc: %d mV", (int)temp, ADC_TO_mV(ret) * VOLT_DIV);
+		nrf_drv_saadc_sample_convert(0, &volt);
+		NRF_LOG("Time: %d, Temp: %d, Vcc: %d mV", RTOS_TIME, (int)temp, ADC_TO_mV(volt) * VOLT_DIV);
 
 		p.AppData.temp = temp;
-		p.AppData.volt = (uint16_t) (ADC_TO_mV(ret) * VOLT_DIV);
+		p.AppData.volt = (uint16_t) (ADC_TO_mV(volt) * VOLT_DIV);
 
 		APP_TX(p, net_tx_buf, 0);
 		vTaskDelay(pdMS_TO_TICKS(UPLOAD_PERIOD_MS));
 	}
 }
 
-#define PING_TIMEOUT 500
+#define PING_TIMEOUT 3000
 
 typedef struct {
 	uint8_t upload_node;
@@ -145,7 +145,7 @@ static void app_ping_task (void * pvParameter)
 
 static void print_data (LoRaPkg *p)
 {
-	NRF_LOG("NET from: 0x%02x, Temp: %d, Vcc: %d mV", p->Header.NetHeader.src ,(int)p->AppData.temp, p->AppData.volt);
+	NRF_LOG("Time: %d, NET from: 0x%02x, Temp: %d, Vcc: %d mV", RTOS_TIME, p->Header.NetHeader.src ,(int)p->AppData.temp, p->AppData.volt);
 	NRF_LOG("MAC from: 0x%02x, Rssi: %d, Snr: %d", p->Header.MacHeader.src, p->stat.RssiPkt, p->stat.SnrPkt);
 }
 
