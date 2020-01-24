@@ -30,7 +30,6 @@ uint32_t phy_tx_err;
 uint32_t mac_rx_done;
 uint32_t mac_rx_drop;
 uint32_t mac_tx_done;
-uint32_t mac_tx_err;
 uint32_t mac_ack_respon;
 
 QueueHandle_t mac_tx_buf;
@@ -204,18 +203,17 @@ void lora_mac_task(void * pvParameter)
 				//NRF_LOG_DBG("irqReg: 0x%04x", irqRegs);
 				
 				if ((IS_IRQ(irqRegs, IRQ_CRC_ERROR)) || (IS_IRQ(irqRegs, IRQ_HEADER_ERROR))) {
-					NRF_LOG_DBG("Rx error!");
 					phy_rx_err++;
+					NRF_LOG_DBG("Rx error!");
 				} else if (IS_IRQ(irqRegs, IRQ_RX_TX_TIMEOUT)) {
-					NRF_LOG_DBG_TIME("Rx timeout!");
 					phy_rx_timeout++;
+					NRF_LOG_DBG_TIME("Rx timeout!");
 				} else if (IS_IRQ(irqRegs, IRQ_RX_DONE)) {
+					phy_rx_done++;
 					SX126xGetPayload(pkgbuf, &pkgsize, 255);
 					NRF_LOG_DBG_TIME("Rx done, size: %d", pkgsize);
-					phy_rx_done++;
-					
-					hdr_type = (PkgType) (pkgbuf[0]);
 
+					hdr_type = (PkgType) (pkgbuf[0]);
 					//NRF_LOG_HEX_DBG(pkgbuf, pkgsize);
 					if (hdr_type < TYPE_MAX && pkgsize == pkgSizeMap[hdr_type][1])
 					{
@@ -228,6 +226,7 @@ void lora_mac_task(void * pvParameter)
 						mac_rx_handle(&rxtmp);
 					}
 				} else {
+					phy_rx_err++;
 					NRF_LOG_DBG("Rx unknown error!");
 				}
 			} else
@@ -238,6 +237,7 @@ void lora_mac_task(void * pvParameter)
 					/* phy_tx_buf is not empty */
 					/* check whether tx timer timeout */
 					if ( tx_timer == 0 && xQueueReceive(mac_tx_buf, &txtmp, 0) == pdPASS ) {
+						mac_tx_done++;
 						/* tx timer timeout, reset timer counter */
 						tx_timer = (xTaskGetTickCount() & TX_TIMER_MASK );
 
@@ -248,9 +248,9 @@ void lora_mac_task(void * pvParameter)
 						} else {
 							pkgsize = SIZE_PKG_MAX;
 						}
-						
+
 						txtmp.Header.MacHeader.src = Route.getMacAddr();
-						
+
 						NRF_LOG_DBG_TIME("Tx start! size: %d", pkgsize);
 						//NRF_LOG_DBG("Tx hex:");
 						//NRF_LOG_HEX_DBG(&txtmp, pkgsize);
@@ -259,20 +259,18 @@ void lora_mac_task(void * pvParameter)
 						SET_RADIO(Radio.Send((uint8_t *)&txtmp, pkgsize, TX_TIMEOUT), irqRegs);
 						if (hook->macTxEnd != NULL) hook->macTxEnd();
 						//NRF_LOG_DBG("irqReg: 0x%04x", irqRegs);
-						
 						if (txtmp.Header.type == TYPE_DATA && txtmp.Header.NetHeader.ack == ACK)
 							xSemaphoreGive(m_ack_Semaphore);
 						
 						if (IS_IRQ(irqRegs, IRQ_TX_DONE)) {
 							NRF_LOG_DBG_TIME("Tx done");
-							mac_tx_done++;
+							phy_tx_done++;
 							/* Tx ok */
 						} else {
 							NRF_LOG_DBG("Tx error/timeout!");
-							mac_tx_err++;
+							phy_tx_err++;
 							/* Tx error */
 						}
-						
 					} else {
 						NRF_LOG_DBG("wait Tx timer: %d...", tx_timer);
 						--tx_timer;

@@ -97,8 +97,8 @@ static int8_t send_wait_ack(LoRaPkg* p, lora_net_hook* hook)
 		}
 		tries++;
 	} while (tries < ACK_MAX);
-	NRF_LOG_DBG_TIME("ack failed!");
 	net_tx_ack_fail++;
+	NRF_LOG_DBG_TIME("ack failed!");
 	return -1;
 }
 

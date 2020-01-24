@@ -41,7 +41,6 @@ extern uint32_t phy_tx_err;
 extern uint32_t mac_rx_done;
 extern uint32_t mac_rx_drop;
 extern uint32_t mac_tx_done;
-extern uint32_t mac_tx_err;
 extern uint32_t mac_ack_respon;
 
 /* net layer counter */
