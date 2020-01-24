@@ -305,7 +305,14 @@ int main(void)
 	NRF_LOG_DEFAULT_BACKENDS_INIT();
 	
 	APP_ERROR_CHECK(nrf_drv_clock_init());
-	
+
+#if defined (__ARMCC_VERSION)
+	NRF_LOG("ARMCC version: %s", __ARMCC_VERSION);
+#elif defined (__VERSION__)
+	NRF_LOG("GCC version: %s", __VERSION__);
+#endif
+	NRF_LOG("Compile Time: %s %s", __DATE__, __TIME__);
+
 	leds_init();
 	nrf_temp_init();
 	saadc_init();
