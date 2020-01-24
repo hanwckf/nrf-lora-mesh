@@ -93,7 +93,7 @@ void SX126xInit( DioIrqHandler dioIrq )
 #ifdef USE_TCXO
     CalibrationParams_t calibParam;
 
-    SX126xSetDio3AsTcxoCtrl( TCXO_CTRL_2_7V, RADIO_TCXO_SETUP_TIME << 6 ); // convert from ms to SX126x time base
+    SX126xSetDio3AsTcxoCtrl( TCXO_CTRL_1_8V, RADIO_TCXO_SETUP_TIME << 6 ); // convert from ms to SX126x time base
 	SX126xClearDeviceErrors();
 	
     calibParam.Value = 0x7F;

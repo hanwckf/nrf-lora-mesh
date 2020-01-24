@@ -307,7 +307,7 @@ int main(void)
 	APP_ERROR_CHECK(nrf_drv_clock_init());
 
 #if defined (__ARMCC_VERSION)
-	NRF_LOG("ARMCC version: %s", __ARMCC_VERSION);
+	NRF_LOG("ARMCC version: %d", __ARMCC_VERSION);
 #elif defined (__VERSION__)
 	NRF_LOG("GCC version: %s", __VERSION__);
 #endif
