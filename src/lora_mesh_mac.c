@@ -206,15 +206,12 @@ void lora_mac_task(void * pvParameter)
 				if ((IS_IRQ(irqRegs, IRQ_CRC_ERROR)) || (IS_IRQ(irqRegs, IRQ_HEADER_ERROR))) {
 					NRF_LOG_DBG("Rx error!");
 					phy_rx_err++;
-					/* rx error */
 				} else if (IS_IRQ(irqRegs, IRQ_RX_TX_TIMEOUT)) {
 					NRF_LOG_DBG_TIME("Rx timeout!");
 					phy_rx_timeout++;
-					/* rx timeout */
 				} else if (IS_IRQ(irqRegs, IRQ_RX_DONE)) {
-					/* get payload size, fill data, then enqueue phy_rx_buf */
 					SX126xGetPayload(pkgbuf, &pkgsize, 255);
-					NRF_LOG_DBG_TIME("Rx done, pkgsize: %d", pkgsize);
+					NRF_LOG_DBG_TIME("Rx done, size: %d", pkgsize);
 					phy_rx_done++;
 					
 					hdr_type = (PkgType) (pkgbuf[0]);
@@ -232,7 +229,6 @@ void lora_mac_task(void * pvParameter)
 					}
 				} else {
 					NRF_LOG_DBG("Rx unknown error!");
-					/* unknown error */
 				}
 			} else
 			{
@@ -255,7 +251,7 @@ void lora_mac_task(void * pvParameter)
 						
 						txtmp.Header.MacHeader.src = Route.getMacAddr();
 						
-						NRF_LOG_DBG_TIME("Tx start! pkgsize: %d", pkgsize);
+						NRF_LOG_DBG_TIME("Tx start! size: %d", pkgsize);
 						//NRF_LOG_DBG("Tx hex:");
 						//NRF_LOG_HEX_DBG(&txtmp, pkgsize);
 						
@@ -283,8 +279,7 @@ void lora_mac_task(void * pvParameter)
 					}
 				}
 			}
-        } else 
-		{
+        } else {
 			NRF_LOG_DBG("CAD error!");
 		}
 		

@@ -1,4 +1,3 @@
 GNU_INSTALL_ROOT =
 GNU_PREFIX = arm-none-eabi
-SDK_ROOT := ../nRF5_SDK_15.3.0_59ac345
-
+SDK_ROOT = ../nRF5_SDK_15.3.0_59ac345
