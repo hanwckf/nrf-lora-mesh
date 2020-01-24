@@ -1,8 +1,8 @@
 include config.mk
+PRETTY = 1
 TARGETS          := nrf52832_xxaa
 OUTPUT_DIRECTORY := _build
-PRETTY = 1
-PROJ_DIR := $(shell pwd)
+PROJ_DIR := .
 
 $(OUTPUT_DIRECTORY)/nrf52832_xxaa.out: \
   LINKER_SCRIPT  := gcc_nrf52.ld
