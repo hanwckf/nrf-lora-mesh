@@ -45,6 +45,7 @@ extern uint32_t mac_ack_respon;
 
 /* net layer counter */
 extern uint32_t net_tx_ack_ok; /* net tx ack done */
+extern uint32_t net_tx_ack_retry; /* net tx ack retry times */
 extern uint32_t net_tx_ack_fail; /* net tx ack fail */
 extern uint32_t net_tx_done; /* net tx done */
 extern uint32_t net_tx_drop; /* net tx drop (No route to host) */

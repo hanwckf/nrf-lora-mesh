@@ -1,4 +1,4 @@
-#define DEBUG_LOG
+//#define DEBUG_LOG
 
 #include "stdlib.h"
 #include "sx126x_board.h"
@@ -16,6 +16,7 @@
 
 /* net layer counter */
 uint32_t net_tx_ack_ok; /* net tx ack done */
+uint32_t net_tx_ack_retry; /* net tx ack retry times */
 uint32_t net_tx_ack_fail; /* net tx ack fail */
 uint32_t net_tx_done; /* net tx done */
 uint32_t net_tx_drop; /* net tx drop (No route to host) */
@@ -84,7 +85,7 @@ static int8_t send_wait_ack(LoRaPkg* p, lora_net_hook* hook)
 	uint8_t tries = 0;
 	ack_time = RTOS_TIME;
 	do {
-		NRF_LOG_DBG_TIME("ack pid: %d, tries: %d", ack_wait_id, tries);
+		NRF_LOG_DBG_TIME("L3: ack pid: %d, tries: %d", ack_wait_id, tries);
 		NET_TX(p, mac_tx_buf, portMAX_DELAY, hook);
 		/* wait semaphore for mac tx done, NOTE: only one ack-needed pkg in mac_tx_buf at a time */
 		xSemaphoreTake(m_ack_Semaphore, portMAX_DELAY);
@@ -92,13 +93,13 @@ static int8_t send_wait_ack(LoRaPkg* p, lora_net_hook* hook)
 		if ( ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(ACK_TIMEOUT)) != 0 )
 		{
 			net_tx_ack_ok++;
-			NRF_LOG_DBG_TIME("ack ok!");
+			NRF_LOG_DBG_TIME("L3: ack ok!");
 			return 0; /* ack success */
 		}
-		tries++;
+		tries++; net_tx_ack_retry++;
 	} while (tries < ACK_MAX);
 	net_tx_ack_fail++;
-	NRF_LOG_DBG_TIME("ack failed!");
+	NRF_LOG_DBG_TIME("L3: ack failed!");
 	return -1;
 }
 
@@ -126,7 +127,7 @@ void lora_net_tx_task (void * pvParameter)
 			if (p.Header.NetHeader.dst == NET_BROADCAST_ADDR) {
 				p.Header.MacHeader.dst = MAC_BROADCAST_ADDR;
 				NET_TX(&p, mac_tx_buf, portMAX_DELAY, hook);
-				NRF_LOG_DBG("send net broadcast!");
+				NRF_LOG_DBG_TIME("L3: Tx broadcast pkg!");
 			} else {
 				/* net unicast, findout next hop */
 				nexthop = Route.getRouteTo(p.Header.NetHeader.dst);
@@ -135,13 +136,13 @@ void lora_net_tx_task (void * pvParameter)
 					/* RA with NET unicast and MAC broadcast */
 					net_tx_drop++;
 					GEN_RA(t, p.Header.NetHeader.dst);
-					NRF_LOG_DBG("No route to: 0x%02x, send RA, pid: %d", p.Header.NetHeader.dst, t.Header.NetHeader.pid);
+					NRF_LOG_DBG_TIME("L3: No route to: 0x%02x, send RA, pid: %d", p.Header.NetHeader.dst, t.Header.NetHeader.pid);
 					NET_TX(&t, mac_tx_buf, portMAX_DELAY, hook);
 				} else {
 					/* Forward to nexthop */
 					net_fwd_done++;
 					p.Header.MacHeader.dst = nexthop;
-					NRF_LOG_DBG("Tx dst: 0x%02x, nh: 0x%02x", p.Header.NetHeader.dst, nexthop);
+					NRF_LOG_DBG_TIME("L3: Tx dst: 0x%02x, nh: 0x%02x", p.Header.NetHeader.dst, nexthop);
 					if (p.Header.type == TYPE_DATA && p.Header.NetHeader.ack == ACK) {
 						p.Header.NetHeader.pid = ack_wait_id;
 						if (send_wait_ack(&p, hook) < 0) {
@@ -149,8 +150,8 @@ void lora_net_tx_task (void * pvParameter)
 						}
 						ack_wait_id++;
 					} else {
-						NRF_LOG_DBG("No need ack!");
 						NET_TX(&p, mac_tx_buf, portMAX_DELAY, hook);
+						NRF_LOG_DBG_TIME("L3: Tx without ack done!");
 					}
 				}
 			}
@@ -171,32 +172,30 @@ void lora_net_rx_task (void * pvParameter)
 	while (1) {
 		if ( xQueueReceive(mac_rx_buf, &p, portMAX_DELAY) == pdPASS)
 		{
-			net_rx_done++;
-			NRF_LOG_DBG("nsrc: 0x%02x, ndst: 0x%02x, msrc: 0x%02x", 
+			NRF_LOG_DBG_TIME("L3: nsrc: 0x%02x, ndst: 0x%02x, msrc: 0x%02x", 
 				p.Header.NetHeader.src, p.Header.NetHeader.dst, p.Header.MacHeader.src);
 			
 			if (p.Header.NetHeader.dst == Route.getNetAddr()
 					|| p.Header.NetHeader.dst == NET_BROADCAST_ADDR) {
 				switch((uint8_t)p.Header.type) {
 					case TYPE_DATA: /* It always be unicast */
-						NRF_LOG_DBG_TIME("recv: TYPE_DATA");
+						NRF_LOG_DBG_TIME("L3: recv TYPE_DATA");
 						NET_RX(&p, net_rx_buf, 0, hook);
 						break;
 					case TYPE_DATA_ACK: /* already notify net_tx_task in mac layer */
 						break;
 					case TYPE_PING: /* It cannot be processed in MAC layer! */
-						NRF_LOG_DBG("recv: TYPE_PING");
 						if (p.Header.NetHeader.ack == ACK_NO) {
-							NRF_LOG_DBG("send ping ack"); /* send pingack */
+							NRF_LOG_DBG_TIME("L3: recv TYPE_PING, send ping ack"); /* send pingack */
 							GEN_PINGACK(t, p);
 							xQueueSend(net_tx_buf, &t, portMAX_DELAY);
 						} else {
-							NRF_LOG_DBG("recv: ping ack"); /* It is a pingack */
+							NRF_LOG_DBG_TIME("L3: recv ping ack"); /* It is a pingack */
 							NET_RX(&p, net_rx_buf, 0, hook);
 						}
 						break;
 					case TYPE_RA: /* It must be NET unicast (MAC broadcast) */
-						NRF_LOG_DBG("recv: TYPE_RA");
+						NRF_LOG_DBG_TIME("L3: recv TYPE_RA");
 						ra_handle(&p, hook);
 						break;
 					default: net_rx_drop++; break;
@@ -204,16 +203,14 @@ void lora_net_rx_task (void * pvParameter)
 			} else {
 				/* It must be NET unicast, check hops */
 				if (p.Header.NetHeader.hop < MAX_HOPS ) {
-					NRF_LOG_DBG("forward, now hops: %d", p.Header.NetHeader.hop);
 					if (hook->netForward != NULL) hook->netForward();
 					if (p.Header.type != TYPE_RA || ra_forward(&p, hook)) {
-						NRF_LOG_DBG("forward: send to net_tx_buf");
+						NRF_LOG_DBG_TIME("L3: forward, send to net_tx_buf");
 						p.Header.NetHeader.hop++;
 						xQueueSend(net_tx_buf, &p, portMAX_DELAY);
 					}
 				} else {
-					NRF_LOG_DBG("hop max, drop!");
-					/* hop max, will not forward */
+					NRF_LOG_DBG_TIME("L3: hop max, drop!");
 					net_fwd_err++; net_rx_drop++;
 				}
 			}
@@ -223,10 +220,12 @@ void lora_net_rx_task (void * pvParameter)
 
 static void send_ra_respon(LoRaPkg* p, lora_net_hook *hook)
 {
-	NRF_LOG_DBG("recv ra pid: %d, last pid: %d ", p->Header.NetHeader.pid, _last_ra[p->Header.NetHeader.src]);
+	NRF_LOG_DBG_TIME("L3: recv RA from: 0x%02x, pid: %d, last pid: %d ", 
+		p->Header.NetHeader.src ,p->Header.NetHeader.pid, _last_ra[p->Header.NetHeader.src]);
+	
 	if (p->Header.NetHeader.pid != _last_ra[p->Header.NetHeader.src])
 	{
-		NRF_LOG_DBG("send RA_RESPON to ndst: 0x%02x!", p->Header.NetHeader.src);
+		NRF_LOG_DBG_TIME("L3: send RA_RESPON to ndst: 0x%02x!", p->Header.NetHeader.src);
 		_last_ra[p->Header.NetHeader.src] = p->Header.NetHeader.pid;
 		
 		p->Header.NetHeader.subtype = SUB_RA_RESPON;
@@ -235,6 +234,8 @@ static void send_ra_respon(LoRaPkg* p, lora_net_hook *hook)
 		
 		//NRF_LOG_HEX_DBG(p, sizeof(LoRaPkg));
 		xQueueSend(net_tx_buf, p, portMAX_DELAY);
+	} else {
+		NRF_LOG_DBG_TIME("L3: dup RA, drop!");
 	}
 }
 
@@ -270,9 +271,9 @@ static bool ra_forward(LoRaPkg* p, lora_net_hook *hook)
 			/* append NetAddr to RA_List, then rebroadcast */
 			p->RouteData.RA_List[p->Header.NetHeader.hop] = Route.getNetAddr();
 			p->Header.NetHeader.hop++;
-			NRF_LOG_DBG("RA: rebroadcast!");
+			NRF_LOG_DBG_TIME("L3: RA: rebroadcast!");
 			for (i=0; i < p->Header.NetHeader.hop; i++) {
-				NRF_LOG_DBG("RA_List_%d: 0x%02x", i , p->RouteData.RA_List[i]);
+				NRF_LOG_DBG("L3: RA_List_%d: 0x%02x", i , p->RouteData.RA_List[i]);
 			}
 			NET_TX(p, mac_tx_buf, portMAX_DELAY, hook); 
 			return false;

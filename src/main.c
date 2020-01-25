@@ -74,7 +74,7 @@ static void app_upload_task (void * pvParameter)
 		temp = (nrf_temp_read() / 4);
 		NRF_TEMP->TASKS_STOP = 1;
 		nrf_drv_saadc_sample_convert(0, &volt);
-		NRF_LOG("Time: %d, Temp: %d, Vcc: %d mV", RTOS_TIME, (int)temp, ADC_TO_mV(volt) * VOLT_DIV);
+		NRF_LOG_TIME("Temp: %d, Vcc: %d mV", (int)temp, ADC_TO_mV(volt) * VOLT_DIV);
 
 		p.AppData.temp = temp;
 		p.AppData.volt = (uint16_t) (ADC_TO_mV(volt) * VOLT_DIV);
@@ -128,9 +128,9 @@ static void app_ping_task (void * pvParameter)
 			/* upload ret */
 			if (Route.getNetAddr() == ping_req.upload_node) {
 				if (time < 0) {
-					NRF_LOG("0x%02x -> 0x%02x, timeout!",Route.getNetAddr(), ping_req.ping_dest);
+					NRF_LOG_TIME("0x%02x -> 0x%02x, timeout!",Route.getNetAddr(), ping_req.ping_dest);
 				} else {
-					NRF_LOG("0x%02x -> 0x%02x, %d ms",Route.getNetAddr(), ping_req.ping_dest, time);
+					NRF_LOG_TIME("0x%02x -> 0x%02x, %d ms",Route.getNetAddr(), ping_req.ping_dest, time);
 				}
 			} else {
 				u.Header.NetHeader.dst = ping_req.upload_node;
@@ -145,8 +145,11 @@ static void app_ping_task (void * pvParameter)
 
 static void print_data (LoRaPkg *p)
 {
-	NRF_LOG("Time: %d, NET from: 0x%02x, Temp: %d, Vcc: %d mV", RTOS_TIME, p->Header.NetHeader.src ,(int)p->AppData.temp, p->AppData.volt);
-	NRF_LOG("MAC from: 0x%02x, Rssi: %d, Snr: %d", p->Header.MacHeader.src, p->stat.RssiPkt, p->stat.SnrPkt);
+	NRF_LOG_TIME("===>");
+	NRF_LOG_TIME("NET: 0x%02x, Temp: %d, Vcc: %d mV", p->Header.NetHeader.src, (int)p->AppData.temp, p->AppData.volt);
+	NRF_LOG_TIME("MAC: 0x%02x(%d), Rssi: %d, Snr: %d", p->Header.MacHeader.src,
+		p->Header.NetHeader.hop, p->stat.RssiPkt, p->stat.SnrPkt);
+	NRF_LOG_TIME("<===");
 }
 
 static void print_pingret (LoRaPkg *p)
@@ -154,9 +157,9 @@ static void print_pingret (LoRaPkg *p)
 	int16_t ping_ret;
 	memcpy(p->AppData.custom + 2, &ping_ret, sizeof(ping_ret));
 	if (ping_ret < 0) {
-		NRF_LOG("0x%02x -> 0x%02x, timeout!", p->Header.NetHeader.src, p->AppData.custom[1]);
+		NRF_LOG_TIME("0x%02x -> 0x%02x, timeout!", p->Header.NetHeader.src, p->AppData.custom[1]);
 	} else {
-		NRF_LOG("0x%02x -> 0x%02x, %d ms", p->Header.NetHeader.src, p->AppData.custom[1], ping_ret);
+		NRF_LOG_TIME("0x%02x -> 0x%02x, %d ms", p->Header.NetHeader.src, p->AppData.custom[1], ping_ret);
 	}
 }
 
@@ -243,7 +246,7 @@ static void app_gw_task (void * pvParameter)
 	}
 }
 
-#define STAT_PERIOD_MS			5000
+#define STAT_PERIOD_MS			10000
 
 #define PRINT_STAT_LOCAL
 static TaskHandle_t app_stat_handle;
@@ -259,16 +262,16 @@ static void app_stat_task ( void * pvParameter)
 	
 	while (1) {
 		if ( xQueueReceive(app_stat_buf, &dst, pdMS_TO_TICKS(STAT_PERIOD_MS)) == pdTRUE ) {
+			NRF_LOG_TIME("L7: CMD_UPLOAD_STAT recv!")
 			t.Header.NetHeader.dst = dst;
 			memcpy(t.AppData.custom + 1 , &mac_tx_done, sizeof(mac_tx_done));
 			APP_TX(t, net_tx_buf, 0);
 		}
 #ifdef PRINT_STAT_LOCAL
-		NRF_LOG("Time: %d", (xTaskGetTickCount() * 1000) >> 10);
-		NRF_LOG("PHY CAD det/done: %d, %d", phy_cad_det, phy_cad_done);
-		NRF_LOG("PHY Rx err/timeout/done: %d, %d, %d", phy_rx_err, phy_rx_timeout, phy_rx_done);
-		NRF_LOG("MAC Tx done: %d", mac_tx_done);
-		NRF_LOG("NET Tx ack ok: %d, fail: %d", net_tx_ack_ok, net_tx_ack_fail);
+		NRF_LOG_TIME("PHY CAD det/done: %d, %d", phy_cad_det, phy_cad_done);
+		NRF_LOG_TIME("PHY Rx err/timeout/done: %d, %d, %d", phy_rx_err, phy_rx_timeout, phy_rx_done);
+		NRF_LOG_TIME("MAC Tx: %d; Rx: %d", mac_tx_done, mac_rx_done);
+		NRF_LOG_TIME("NET Rx: %d; Tx acked: %d (retry: %d, fail: %d)", net_rx_done, net_tx_ack_ok, net_tx_ack_retry, net_tx_ack_fail);
 #endif
 	}
 }

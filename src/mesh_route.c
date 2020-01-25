@@ -25,7 +25,7 @@ static void _delRouteByNexthop (uint8_t next_hop)
 				&& _routes[i].state == Valid)
 			_routes[i].state = Invalid;
 	}
-	NRF_LOG_DBG("DEL nh: 0x%02x", next_hop);
+	NRF_LOG_DBG("DEL by nh: 0x%02x", next_hop);
 	PRINT_ROUTE_TABLE;
 	taskEXIT_CRITICAL();
 }
@@ -47,19 +47,19 @@ static void _delRouteByDest (uint8_t dest)
 				&& _routes[i].state == Valid)
 			_routes[i].state = Invalid;
 	}
-	NRF_LOG_DBG("DEL dst: 0x%02x", dest);
+	NRF_LOG_DBG("DEL by dst: 0x%02x", dest);
 	PRINT_ROUTE_TABLE;
 	taskEXIT_CRITICAL();
 }
 
-#define RSSI_WEAK2_THRESHOLD -100
+#define RSSI_WEAK2_THRESHOLD -110
 #define RSSI_DIFF2_THRESHOLD 10
 
-#define RSSI_WEAK1_THRESHOLD -80
-#define RSSI_DIFF1_THRESHOLD 20
+#define RSSI_WEAK1_THRESHOLD -90
+#define RSSI_DIFF1_THRESHOLD 15
 
-#define RSSI_WEAK0_THRESHOLD -60
-#define RSSI_DIFF0_THRESHOLD 30
+#define RSSI_WEAK0_THRESHOLD -75
+#define RSSI_DIFF0_THRESHOLD 15
 
 static bool isNeedUpdate(uint8_t old_hop, uint8_t new_hop, uint8_t old_hop_count, uint8_t new_hop_count)
 {
@@ -160,11 +160,11 @@ static int8_t _getRouteTo (uint8_t dest) {
 	uint8_t i;
 	for (i = 0; i<ROUTING_TABLE_SIZE; i++) {
 		if (_routes[i].dest == dest && _routes[i].state != Invalid) {
-				NRF_LOG_DBG("Route found! dst: 0x%02x, nh: 0x%02x", dest, _routes[i].next_hop);
+				//NRF_LOG_DBG("Route found! dst: 0x%02x, nh: 0x%02x", dest, _routes[i].next_hop);
 				return _routes[i].next_hop;
 		}
 	}
-	NRF_LOG_DBG("Route fail! dst: 0x%02x", dest);
+	//NRF_LOG_DBG("Route fail! dst: 0x%02x", dest);
 	return -1; /* No route to host */
 }
 

@@ -1,4 +1,4 @@
-#define DEBUG_LOG
+//#define DEBUG_LOG
 //#define DEBUG_ROUTE
 
 #include "stdlib.h"
@@ -62,15 +62,16 @@ void mac_peek_pkg (LoRaPkg* p)
 
 	if (p->Header.type == TYPE_RA)
 	{
-		if ( p->Header.NetHeader.subtype == SUB_RA )
-			NRF_LOG_DBG("RA recv!");
-		if ( p->Header.NetHeader.subtype == SUB_RA_RESPON )
-			NRF_LOG_DBG("RA_RESPON recv!");
+		if ( p->Header.NetHeader.subtype == SUB_RA ) {
+			NRF_LOG_DBG_TIME("L2: RA peek");
+		} else if ( p->Header.NetHeader.subtype == SUB_RA_RESPON ) {
+			NRF_LOG_DBG_TIME("L2: RA_RESPON peek");
+		}
 		
-		NRF_LOG_DBG("nsrc: 0x%02x, ndst: 0x%02x, msrc: 0x%02x",
+		NRF_LOG_DBG_TIME("L2: nsrc: 0x%02x, ndst: 0x%02x, msrc: 0x%02x",
 			p->Header.NetHeader.src, p->Header.NetHeader.dst, p->Header.MacHeader.src);
 		for (i=0; i < p->Header.NetHeader.hop; i++) {
-			NRF_LOG_DBG("RA_List_%d: 0x%02x", i , p->RouteData.RA_List[i]);
+			NRF_LOG_DBG("L2: RA_List_%d: 0x%02x", i , p->RouteData.RA_List[i]);
 		}
 
 		if (p->Header.NetHeader.subtype == SUB_RA)
@@ -119,32 +120,28 @@ static void mac_rx_handle(LoRaPkg* p)
 				&& mac_dst != MAC_BROADCAST_ADDR 
 				&& p->Header.NetHeader.dst != NET_BROADCAST_ADDR) {
 			mac_ack_respon++;
-			NRF_LOG_DBG_TIME("send ack! pid: %d", p->Header.NetHeader.pid);
+			NRF_LOG_DBG_TIME("L2: send ack! pid: %d", p->Header.NetHeader.pid);
 			GEN_ACK(t, p);
 			xQueueSend(mac_tx_buf, &t, 0);
 
 			/* check dup data */
 			if (p->Header.NetHeader.pid == _last_seen_pid[p->Header.MacHeader.src]) {
-				NRF_LOG_DBG("dup data!");
+				NRF_LOG_DBG_TIME("L2: dup data, drop!");
 				return;
 			} else {
 				_last_seen_pid[p->Header.MacHeader.src] = p->Header.NetHeader.pid;
-				NRF_LOG_DBG("updata lastseen: %d", p->Header.NetHeader.pid);
+				NRF_LOG_DBG_TIME("L2: update last pid from 0x%02x: %d", p->Header.MacHeader.src, p->Header.NetHeader.pid);
 			}
 		} else if (p->Header.type == TYPE_DATA_ACK) {
-			NRF_LOG_DBG_TIME("recv: TYPE_DATA_ACK");
-			NRF_LOG_DBG("recv pid: %d, wait pid: %d", p->Header.NetHeader.pid, ack_wait_id);
+			NRF_LOG_DBG_TIME("L2: recv TYPE_DATA_ACK pid: %d, wait pid: %d", p->Header.NetHeader.pid, ack_wait_id);
 			if (p->Header.NetHeader.pid == ack_wait_id) {
-				NRF_LOG_DBG("ack notify!");
-				NRF_LOG_DBG("ACK wait: %d", RTOS_TIME - ack_time);
+				NRF_LOG_DBG_TIME("L2: ack notify, Delay: %d", RTOS_TIME - ack_time);
 				xTaskNotifyGive(lora_net_tx_handle);
 			} else {
-				NRF_LOG_DBG("ack ignore!");
+				NRF_LOG_DBG_TIME("L2: ack ignore!");
 			}
 			return;
 		}
-		
-		NRF_LOG_DBG("L2: recv in!");
 		xQueueSend(mac_rx_buf, p, 0);
 	} else {
 		mac_rx_drop++;
@@ -166,7 +163,8 @@ TaskHandle_t lora_mac_handle;
 
 void lora_mac_task(void * pvParameter)
 {
-	uint16_t irqRegs;
+	uint16_t irqRegs; uint32_t timer;
+	UNUSED_VARIABLE(timer);
 	uint8_t pkgsize;
 	uint8_t pkgbuf[255];
 	PkgType hdr_type;
@@ -176,44 +174,40 @@ void lora_mac_task(void * pvParameter)
 	lora_mac_hook *hook = &(param->mac_hooks);
 	
 	while (1) {
-		//NRF_LOG_DBG(">>==");
+		NRF_LOG_FLUSH();
 		Radio.Standby();
 		SET_RADIO( Radio.StartCad(), irqRegs );
-		//NRF_LOG_DBG("irqReg: 0x%04x", irqRegs);
 		if (IS_IRQ(irqRegs, IRQ_CAD_DONE)) 
 		{
-			phy_cad_done++;
-			//NRF_LOG_DBG("CAD done!");
-			
+			phy_cad_done++;			
 			if (hook->macCadDone != NULL) hook->macCadDone();
 			
             if (IS_IRQ(irqRegs, IRQ_CAD_ACTIVITY_DETECTED)) 
 			{
-				//NRF_LOG_DBG("CAD detected, set Rx!");
 				phy_cad_det++;
 				if (hook->macCadDetect != NULL) hook->macCadDetect();
 				/* cad detected, set RX */
 				Radio.SetMaxPayloadLength( MODEM_LORA, 0xff );
 				
-				NRF_LOG_DBG_TIME("Rx start");
+				//NRF_LOG_DBG_TIME("L1: Rx start");
+				timer = RTOS_TIME;
 				if (hook->macRxStart != NULL) hook->macRxStart();
 				SET_RADIO( Radio.Rx(RX_TIMEOUT), irqRegs );
 				if (hook->macRxEnd != NULL) hook->macRxEnd();
-				
-				//NRF_LOG_DBG("irqReg: 0x%04x", irqRegs);
-				
+
 				if ((IS_IRQ(irqRegs, IRQ_CRC_ERROR)) || (IS_IRQ(irqRegs, IRQ_HEADER_ERROR))) {
 					phy_rx_err++;
-					NRF_LOG_DBG("Rx error!");
+					NRF_LOG_DBG_TIME("L1: Rx error!");
 				} else if (IS_IRQ(irqRegs, IRQ_RX_TX_TIMEOUT)) {
 					phy_rx_timeout++;
-					NRF_LOG_DBG_TIME("Rx timeout!");
+					NRF_LOG_DBG_TIME("L1: Rx timeout!");
 				} else if (IS_IRQ(irqRegs, IRQ_RX_DONE)) {
 					phy_rx_done++;
 					SX126xGetPayload(pkgbuf, &pkgsize, 255);
-					NRF_LOG_DBG_TIME("Rx done, size: %d", pkgsize);
+					NRF_LOG_DBG_TIME("L1: Rx done, size: %d, time: %d", pkgsize, RTOS_TIME - timer);
 
 					hdr_type = (PkgType) (pkgbuf[0]);
+					//NRF_LOG_DBG_TIME("L1: Rx hex:");
 					//NRF_LOG_HEX_DBG(pkgbuf, pkgsize);
 					if (hdr_type < TYPE_MAX && pkgsize == pkgSizeMap[hdr_type][1])
 					{
@@ -227,11 +221,10 @@ void lora_mac_task(void * pvParameter)
 					}
 				} else {
 					phy_rx_err++;
-					NRF_LOG_DBG("Rx unknown error!");
+					NRF_LOG_DBG_TIME("L1: Rx unknown error!");
 				}
 			} else
 			{
-				//NRF_LOG_DBG("CAD not detected!");
 				/* cad not detected, check whether phy_tx_buf is empty, then check tx timer */
 				if ( uxQueueMessagesWaiting(mac_tx_buf) != 0 ) {
 					/* phy_tx_buf is not empty */
@@ -251,38 +244,33 @@ void lora_mac_task(void * pvParameter)
 
 						txtmp.Header.MacHeader.src = Route.getMacAddr();
 
-						NRF_LOG_DBG_TIME("Tx start! size: %d", pkgsize);
-						//NRF_LOG_DBG("Tx hex:");
+						//NRF_LOG_DBG_TIME("L1: Tx start!");
+						//NRF_LOG_DBG_TIME("L1: Tx hex:");
 						//NRF_LOG_HEX_DBG(&txtmp, pkgsize);
-						
+						timer = RTOS_TIME;
 						if (hook->macTxStart != NULL) hook->macTxStart();
 						SET_RADIO(Radio.Send((uint8_t *)&txtmp, pkgsize, TX_TIMEOUT), irqRegs);
 						if (hook->macTxEnd != NULL) hook->macTxEnd();
-						//NRF_LOG_DBG("irqReg: 0x%04x", irqRegs);
+						
 						if (txtmp.Header.type == TYPE_DATA && txtmp.Header.NetHeader.ack == ACK)
 							xSemaphoreGive(m_ack_Semaphore);
 						
 						if (IS_IRQ(irqRegs, IRQ_TX_DONE)) {
-							NRF_LOG_DBG_TIME("Tx done");
+							NRF_LOG_DBG_TIME("L1: Tx done, size: %d, time: %d", pkgsize, RTOS_TIME - timer);
 							phy_tx_done++;
-							/* Tx ok */
 						} else {
-							NRF_LOG_DBG("Tx error/timeout!");
+							NRF_LOG_DBG_TIME("L1: Tx error/timeout!");
 							phy_tx_err++;
-							/* Tx error */
 						}
 					} else {
-						NRF_LOG_DBG("wait Tx timer: %d...", tx_timer);
+						//NRF_LOG_DBG_TIME("L1: wait Tx timer: %d...", tx_timer);
 						--tx_timer;
 					}
 				}
 			}
-        } else {
-			NRF_LOG_DBG("CAD error!");
-		}
+        }
 		
 		Radio.Sleep();
-		//NRF_LOG_DBG("==<<")
 		NRF_LOG_FLUSH();
 		vTaskDelay(pdMS_TO_TICKS(CAD_PERIOD_MS));
 	}
