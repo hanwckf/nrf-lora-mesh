@@ -71,7 +71,7 @@ static void app_upload_task (void * pvParameter)
 		NRF_TEMP->TASKS_START = 1; /* Start the temperature measurement. */
 		while (NRF_TEMP->EVENTS_DATARDY == 0) { }
 		NRF_TEMP->EVENTS_DATARDY = 0;
-		temp = (nrf_temp_read() / 4);
+		temp = ((float)nrf_temp_read()) / 4;
 		NRF_TEMP->TASKS_STOP = 1;
 		nrf_drv_saadc_sample_convert(0, &volt);
 		NRF_LOG_TIME("Temp: %d, Vcc: %d mV", (int)temp, ADC_TO_mV(volt) * VOLT_DIV);
@@ -146,7 +146,7 @@ static void app_ping_task (void * pvParameter)
 static void print_data (LoRaPkg *p)
 {
 	NRF_LOG_TIME("===>");
-	NRF_LOG_TIME("NET: 0x%02x, Temp: %d, Vcc: %d mV", p->Header.NetHeader.src, (int)p->AppData.temp, p->AppData.volt);
+	NRF_LOG_INFO("NET: 0x%02x, Temp: " NRF_LOG_FLOAT_MARKER ", Vcc: %d mV", p->Header.NetHeader.src, NRF_LOG_FLOAT(p->AppData.temp), p->AppData.volt);
 	NRF_LOG_TIME("MAC: 0x%02x(%d), Rssi: %d, Snr: %d", p->Header.MacHeader.src,
 		p->Header.NetHeader.hop, p->stat.RssiPkt, p->stat.SnrPkt);
 	NRF_LOG_TIME("<===");
