@@ -127,6 +127,7 @@ static void mac_rx_handle(LoRaPkg* p)
 			/* check dup data */
 			if (p->Header.NetHeader.pid == _last_seen_pid[p->Header.MacHeader.src]) {
 				NRF_LOG_DBG_TIME("L2: dup data, drop!");
+				mac_rx_drop++;
 				return;
 			} else {
 				_last_seen_pid[p->Header.MacHeader.src] = p->Header.NetHeader.pid;
@@ -139,6 +140,7 @@ static void mac_rx_handle(LoRaPkg* p)
 				xTaskNotifyGive(lora_net_tx_handle);
 			} else {
 				NRF_LOG_DBG_TIME("L2: ack ignore!");
+				mac_rx_drop++;
 			}
 			return;
 		}

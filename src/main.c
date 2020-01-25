@@ -146,8 +146,8 @@ static void app_ping_task (void * pvParameter)
 static void print_data (LoRaPkg *p)
 {
 	NRF_LOG_TIME("===>");
-	NRF_LOG_INFO("NET: 0x%02x, Temp: " NRF_LOG_FLOAT_MARKER ", Vcc: %d mV", p->Header.NetHeader.src, NRF_LOG_FLOAT(p->AppData.temp), p->AppData.volt);
-	NRF_LOG_TIME("MAC: 0x%02x(%d), Rssi: %d, Snr: %d", p->Header.MacHeader.src,
+	NRF_LOG("NET: 0x%02x, Temp: " NRF_LOG_FLOAT_MARKER ", Vcc: %d mV", p->Header.NetHeader.src, NRF_LOG_FLOAT(p->AppData.temp), p->AppData.volt);
+	NRF_LOG("MAC: 0x%02x(%d), Rssi: %d, Snr: %d", p->Header.MacHeader.src,
 		p->Header.NetHeader.hop, p->stat.RssiPkt, p->stat.SnrPkt);
 	NRF_LOG_TIME("<===");
 }
@@ -268,10 +268,12 @@ static void app_stat_task ( void * pvParameter)
 			APP_TX(t, net_tx_buf, 0);
 		}
 #ifdef PRINT_STAT_LOCAL
-		NRF_LOG_TIME("PHY CAD det/done: %d, %d", phy_cad_det, phy_cad_done);
-		NRF_LOG_TIME("PHY Rx err/timeout/done: %d, %d, %d", phy_rx_err, phy_rx_timeout, phy_rx_done);
-		NRF_LOG_TIME("MAC Tx: %d; Rx: %d", mac_tx_done, mac_rx_done);
-		NRF_LOG_TIME("NET Rx: %d; Tx acked: %d (retry: %d, fail: %d)", net_rx_done, net_tx_ack_ok, net_tx_ack_retry, net_tx_ack_fail);
+		NRF_LOG_TIME("===>");
+		NRF_LOG("PHY CAD det/done: %d, %d", phy_cad_det, phy_cad_done);
+		NRF_LOG("PHY Rx err/timeout/done: %d, %d, %d", phy_rx_err, phy_rx_timeout, phy_rx_done);
+		NRF_LOG("MAC Tx: %d; Rx: %d", mac_tx_done, mac_rx_done);
+		NRF_LOG("NET Rx: %d; Tx acked: %d (retry: %d, fail: %d)", net_rx_done, net_tx_ack_ok, net_tx_ack_retry, net_tx_ack_fail);
+		NRF_LOG_TIME("<===");
 #endif
 	}
 }
