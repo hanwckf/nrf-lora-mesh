@@ -8,7 +8,7 @@ $(OUTPUT_DIRECTORY)/nrf52832_xxaa.out: \
   LINKER_SCRIPT  := gcc_nrf52.ld
 
 # Source files common to all targets
-include nrf_sdk.inc
+include nrf_sdk.mk
 
 CFLAGS += -DUSE_TCXO
 
