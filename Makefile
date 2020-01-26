@@ -98,9 +98,10 @@ help:
 	@echo		nrf52832_xxaa
 	@echo		sdk_config - starting external tool for editing sdk_config.h
 	@echo		flash      - flashing binary
+	@echo		flash_openocd - flashing with openocd
 
 TEMPLATE_PATH := $(SDK_ROOT)/components/toolchain/gcc
-
+OPENOCD_ROOT ?= /usr/share/openocd/scripts
 
 include $(TEMPLATE_PATH)/Makefile.common
 
@@ -112,6 +113,14 @@ $(foreach target, $(TARGETS), $(call define_target, $(target)))
 flash: default
 	@echo Flashing: $(OUTPUT_DIRECTORY)/nrf52832_xxaa.hex
 	nrfjprog -f nrf52 --program $(OUTPUT_DIRECTORY)/nrf52832_xxaa.hex --sectorerase -r
+
+flash_openocd: default
+	@echo Flashing with openocd: $(OUTPUT_DIRECTORY)/nrf52832_xxaa.hex
+	openocd -f $(OPENOCD_ROOT)/interface/jlink.cfg \
+		-c "transport select swd" \
+		-f $(OPENOCD_ROOT)/target/nrf52.cfg \
+		-c "adapter_khz 2000" \
+		-c "program $(OUTPUT_DIRECTORY)/nrf52832_xxaa.hex verify reset exit"
 
 erase:
 	nrfjprog -f nrf52 --eraseall
