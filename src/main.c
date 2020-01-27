@@ -363,7 +363,11 @@ int main(void)
 		.mac_hooks.macRxEnd = mac_rx_end_hook,
 		.mac_hooks.macTxEnd = mac_tx_end_hook,
 	};
-	
+
+#ifdef ENABLE_SEGGER_SYSTEMVIEW
+	SEGGER_SYSVIEW_Conf();
+#endif
+
 	net_tx_buf = xQueueCreate(NET_TX_BUF_NUM, sizeof(LoRaPkg));
 	net_rx_buf = xQueueCreate(NET_RX_BUF_NUM, sizeof(LoRaPkg));
 	mac_tx_buf = xQueueCreate(MAC_TX_BUF_NUM, sizeof(LoRaPkg));

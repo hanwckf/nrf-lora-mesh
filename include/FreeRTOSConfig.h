@@ -129,6 +129,7 @@
 #define INCLUDE_eTaskGetState                                                     1
 #define INCLUDE_xEventGroupSetBitFromISR                                          1
 #define INCLUDE_xTimerPendFunctionCall                                            1
+#define INCLUDE_pxTaskGetStackStart                                               1
 
 /* The lowest interrupt priority that can be used in a call to a "set priority"
 function. */
@@ -203,5 +204,9 @@ standard names - or at least those used in the unmodified vector table. */
      *    convenient for debugging.
      */
 #define configUSE_DISABLE_TICK_AUTO_CORRECTION_DEBUG     0
+
+#ifdef ENABLE_SEGGER_SYSTEMVIEW
+#include "SEGGER_SYSVIEW_FreeRTOS.h"
+#endif
 
 #endif /* FREERTOS_CONFIG_H */
