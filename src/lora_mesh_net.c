@@ -1,4 +1,4 @@
-//#define DEBUG_LOG
+#define DEBUG_LOG
 
 #include "stdlib.h"
 #include "sx126x_board.h"
@@ -30,7 +30,7 @@ QueueHandle_t net_rx_buf;
 
 uint32_t ack_time;
 
-static bool ra_forward(LoRaPkg* p, lora_net_hook *hook);
+static void ra_forward(LoRaPkg* p, lora_net_hook *hook);
 static void ra_handle(LoRaPkg* p, lora_net_hook *hook);
 
 TaskHandle_t lora_net_tx_handle;
@@ -63,7 +63,8 @@ static int16_t _last_ra[255];
 		p.Header.NetHeader.dst = dest; \
 		p.Header.NetHeader.hop = 0; \
 		p.Header.NetHeader.subtype = SUB_RA; \
-		p.Header.NetHeader.pid = ra_pid++; \
+		p.Header.NetHeader.pid = ra_pid; \
+		ra_pid++; \
 	} while (0)
 
 #define GEN_PINGACK(q, p) \
@@ -204,7 +205,9 @@ void lora_net_rx_task (void * pvParameter)
 				/* It must be NET unicast, check hops */
 				if (p.Header.NetHeader.hop < MAX_HOPS ) {
 					if (hook->netForward != NULL) hook->netForward();
-					if (p.Header.type != TYPE_RA || ra_forward(&p, hook)) {
+					if (p.Header.type == TYPE_RA) {
+						ra_forward(&p, hook);
+					} else {
 						NRF_LOG_DBG_TIME("L3: forward, send to net_tx_buf");
 						p.Header.NetHeader.hop++;
 						xQueueSend(net_tx_buf, &p, portMAX_DELAY);
@@ -250,38 +253,15 @@ static void ra_handle(LoRaPkg* p, lora_net_hook *hook)
 	}
 }
 
-/* return true: NEED to forward */
-/* return false: enqueue to mac_tx_buf or ignored */
-
-static bool ra_forward(LoRaPkg* p, lora_net_hook *hook)
+static void ra_forward(LoRaPkg* p, lora_net_hook *hook)
 {
-	uint8_t i;
 	switch (p->Header.NetHeader.subtype) {
-		case SUB_RA:
-			/* ignore RA from local */
-			if (p->Header.NetHeader.src == Route.getNetAddr())
-				return false;
-
-			/* ignore RA already recv */
-			for (i=0; i < p->Header.NetHeader.hop; i++) {
-				if (p->RouteData.RA_List[i] == Route.getNetAddr())
-					return false;
-			}
-
-			/* append NetAddr to RA_List, then rebroadcast */
-			p->RouteData.RA_List[p->Header.NetHeader.hop] = Route.getNetAddr();
-			p->Header.NetHeader.hop++;
-			NRF_LOG_DBG_TIME("L3: RA: rebroadcast!");
-			for (i=0; i < p->Header.NetHeader.hop; i++) {
-				NRF_LOG_DBG("L3: RA_List_%d: 0x%02x", i , p->RouteData.RA_List[i]);
-			}
-			NET_TX(p, mac_tx_buf, portMAX_DELAY, hook); 
-			return false;
+		case SUB_RA: break;
 		case SUB_RA_RESPON: /* forward RA_RESPON, but keep hop count */
+			NRF_LOG_DBG_TIME("forward RA_RESPON!");
 			xQueueSend(net_tx_buf, p, portMAX_DELAY);
-			return false;
+			break;
 		case SUB_RA_FAIL: break; /* TODO */
 		default: break;
 	}
-	return true;
 }

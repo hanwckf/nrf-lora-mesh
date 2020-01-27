@@ -1,4 +1,4 @@
-//#define DEBUG_LOG
+#define DEBUG_LOG
 //#define DEBUG_ROUTE
 
 #include "stdlib.h"
@@ -49,60 +49,73 @@ SemaphoreHandle_t m_irq_Semaphore;
 		q.Header.NetHeader.pid = p->Header.NetHeader.pid; \
 	} while (0)
 
-void mac_peek_pkg (LoRaPkg* p)
+bool mac_peek_pkg (LoRaPkg* p)
 {
 	uint8_t i,j;
-	/* update link quality hashmap */
-	Route.updateLinkQualityMap(p->Header.MacHeader.src, p->stat.RssiPkt);
-
-	PRINT_LINKQUALITY_MAP;
+	NRF_LOG_DBG_TIME("L2: nsrc: 0x%02x, ndst: 0x%02x, msrc: 0x%02x",
+		p->Header.NetHeader.src, p->Header.NetHeader.dst, p->Header.MacHeader.src);	
 
 	Route.updateRoute(p->Header.NetHeader.src,
 		p->Header.MacHeader.src, p->Header.NetHeader.hop);
 
 	if (p->Header.type == TYPE_RA)
 	{
-		if ( p->Header.NetHeader.subtype == SUB_RA ) {
-			NRF_LOG_DBG_TIME("L2: RA peek");
-		} else if ( p->Header.NetHeader.subtype == SUB_RA_RESPON ) {
-			NRF_LOG_DBG_TIME("L2: RA_RESPON peek");
-		}
-		
-		NRF_LOG_DBG_TIME("L2: nsrc: 0x%02x, ndst: 0x%02x, msrc: 0x%02x",
-			p->Header.NetHeader.src, p->Header.NetHeader.dst, p->Header.MacHeader.src);
 		for (i=0; i < p->Header.NetHeader.hop; i++) {
 			NRF_LOG_DBG("L2: RA_List_%d: 0x%02x", i , p->RouteData.RA_List[i]);
 		}
 
-		if (p->Header.NetHeader.subtype == SUB_RA)
-		{
-			/* ignore RA from local */
-			if (p->Header.NetHeader.src == Route.getNetAddr())
-				return;
-			
-			/* ignore previous received RA */
-			for (i=0; i < p->Header.NetHeader.hop; i++) {
-				if (p->RouteData.RA_List[i] == Route.getNetAddr())
-					return;
-			}
+		switch (p->Header.NetHeader.subtype) {
+			case SUB_RA:
+				NRF_LOG_DBG_TIME("L2: RA peek");
+				/* ignore RA from local */
+				if (p->Header.NetHeader.src == Route.getNetAddr()) {
+					NRF_LOG_DBG("ignore SUB_RA from local");
+					return false;
+				}
+				
+				/* ignore previous received RA */
+				for (i=0; i < p->Header.NetHeader.hop; i++) {
+					if (p->RouteData.RA_List[i] == Route.getNetAddr()) {
+						NRF_LOG_DBG("ignore SUB_RA already forward");
+						return false;
+					}
+				}
 
-			for (i=0; i < p->Header.NetHeader.hop; i++) {
-				Route.updateRoute(p->RouteData.RA_List[i],
-					p->Header.MacHeader.src, p->Header.NetHeader.hop - i - 1);
-			}
-		} else if (p->Header.NetHeader.subtype == SUB_RA_RESPON)
-		{
-			for (i = 0; i < p->Header.NetHeader.hop; i++) {
-				if (p->RouteData.RA_List[i] == Route.getMacAddr())
-					break;
-			}
-			i++;
-			for (j=0 ; i < p->Header.NetHeader.hop; i++, j++) {
-				Route.updateRoute(p->RouteData.RA_List[i],
-					p->Header.MacHeader.src, j);
-			}
+				for (i=0; i < p->Header.NetHeader.hop; i++) {
+					Route.updateRoute(p->RouteData.RA_List[i],
+						p->Header.MacHeader.src, p->Header.NetHeader.hop - i - 1);
+				}
+
+				if (p->Header.NetHeader.dst != Route.getNetAddr()) {
+					/* append NetAddr to RA_List, then rebroadcast */	
+					p->RouteData.RA_List[p->Header.NetHeader.hop] = Route.getNetAddr();
+					p->Header.NetHeader.hop++;
+					NRF_LOG_DBG_TIME("L2: RA: rebroadcast!");
+					for (i=0; i < p->Header.NetHeader.hop; i++) {
+						NRF_LOG_DBG("L2: RA_List_%d: 0x%02x", i , p->RouteData.RA_List[i]);
+					}
+					xQueueSend(mac_tx_buf, p, 0);
+					return false;
+				}
+				break;
+			case SUB_RA_RESPON:
+				NRF_LOG_DBG_TIME("L2: RA_RESPON peek");
+				for (i = 0; i < p->Header.NetHeader.hop; i++) {
+					if (p->RouteData.RA_List[i] == Route.getMacAddr())
+						break;
+				}
+				i++;
+				for (j=0 ; i < p->Header.NetHeader.hop; i++, j++) {
+					Route.updateRoute(p->RouteData.RA_List[i],
+						p->Header.MacHeader.src, j);
+				}
+				break;
+			default: break;
 		}
 	}
+
+	return true;
+
 }
 
 extern uint8_t ack_wait_id;
@@ -110,9 +123,14 @@ extern uint32_t ack_time;
 
 static void mac_rx_handle(LoRaPkg* p)
 {
+	LoRaPkg t; bool ret;
 	uint8_t mac_dst = p->Header.MacHeader.dst;
-	mac_peek_pkg(p);
-	LoRaPkg t;
+
+	Route.updateLinkQualityMap(p->Header.MacHeader.src, p->stat.RssiPkt);
+	PRINT_LINKQUALITY_MAP;
+
+	ret = mac_peek_pkg(p);
+
 	if (mac_dst == Route.getMacAddr() || mac_dst == MAC_BROADCAST_ADDR) {
 		mac_rx_done++;
 		if (p->Header.type == TYPE_DATA 
@@ -120,7 +138,7 @@ static void mac_rx_handle(LoRaPkg* p)
 				&& mac_dst != MAC_BROADCAST_ADDR 
 				&& p->Header.NetHeader.dst != NET_BROADCAST_ADDR) {
 			mac_ack_respon++;
-			NRF_LOG_DBG_TIME("L2: send ack! pid: %d", p->Header.NetHeader.pid);
+			//NRF_LOG_DBG_TIME("L2: send ack! pid: %d", p->Header.NetHeader.pid);
 			GEN_ACK(t, p);
 			xQueueSend(mac_tx_buf, &t, 0);
 
@@ -131,10 +149,10 @@ static void mac_rx_handle(LoRaPkg* p)
 				return;
 			} else {
 				_last_seen_pid[p->Header.MacHeader.src] = p->Header.NetHeader.pid;
-				NRF_LOG_DBG_TIME("L2: update last pid from 0x%02x: %d", p->Header.MacHeader.src, p->Header.NetHeader.pid);
+				//NRF_LOG_DBG_TIME("L2: update last pid from 0x%02x: %d", p->Header.MacHeader.src, p->Header.NetHeader.pid);
 			}
 		} else if (p->Header.type == TYPE_DATA_ACK) {
-			NRF_LOG_DBG_TIME("L2: recv TYPE_DATA_ACK pid: %d, wait pid: %d", p->Header.NetHeader.pid, ack_wait_id);
+			//NRF_LOG_DBG_TIME("L2: recv TYPE_DATA_ACK pid: %d, wait pid: %d", p->Header.NetHeader.pid, ack_wait_id);
 			if (p->Header.NetHeader.pid == ack_wait_id) {
 				NRF_LOG_DBG_TIME("L2: ack notify, Delay: %d", RTOS_TIME - ack_time);
 				xTaskNotifyGive(lora_net_tx_handle);
@@ -144,7 +162,8 @@ static void mac_rx_handle(LoRaPkg* p)
 			}
 			return;
 		}
-		xQueueSend(mac_rx_buf, p, 0);
+		if (ret)
+			xQueueSend(mac_rx_buf, p, 0);
 	} else {
 		mac_rx_drop++;
 	}

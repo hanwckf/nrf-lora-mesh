@@ -20,5 +20,6 @@
 #define RX_TIMEOUT                      80
 #define TX_TIMEOUT                      250
 #define TX_TIMER_MASK                   0x3 /* tx timer is between (0 ~ 3) * CAD_PERIOD_MS  */
+#define LINKQMAP_CLEAR_PERIOD			30000
 
 #endif

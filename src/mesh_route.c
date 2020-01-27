@@ -2,8 +2,6 @@
 #define DEBUG_ROUTE
 #include "mesh_route.h"
 #include "compact.h"
-#include "FreeRTOS.h"
-#include "task.h"
 
 static Addr_t _addr;
 static RouteTableEntry _routes[ROUTING_TABLE_SIZE];
@@ -34,6 +32,7 @@ static void _updateLinkQualityMap (uint8_t addr, int16_t quality)
 {
 	taskENTER_CRITICAL();
 	_LinkQuality[addr].valid = true;
+	_LinkQuality[addr].updated = true;
 	_LinkQuality[addr].quality = quality;
 	taskEXIT_CRITICAL();
 }
@@ -189,6 +188,23 @@ static void _clearLinkQuailtyMap(void) {
 	}
 }
 
+static void _clearLinkQuailtyMapTimer(TimerHandle_t xTimer) {
+	taskENTER_CRITICAL();
+	uint8_t cnt = 0;
+	for (uint8_t i=0; i<255; i++) {
+		if (_LinkQuality[i].valid == true) 
+		{
+			if (_LinkQuality[i].updated == false) {
+				cnt++;
+				_LinkQuality[i].valid = false;
+			}
+			_LinkQuality[i].updated = false;
+		}
+	}
+	NRF_LOG_DBG("LinkQuailtyMap clean: %d", cnt);
+	taskEXIT_CRITICAL();
+}
+
 static void _initRouteTable (Addr_t *addr) {
 	_addr.mac = addr->mac;
 	_addr.net = addr->net;
@@ -206,4 +222,5 @@ const MeshRoute_t Route = {
 	.delRouteByNexthop = _delRouteByNexthop,
 	.delRouteByDest = _delRouteByDest,
 	.updateLinkQualityMap = _updateLinkQualityMap,
+	.clearLinkQuailtyMapTimer = _clearLinkQuailtyMapTimer,
 };

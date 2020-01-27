@@ -305,6 +305,10 @@ void mac_cad_done_hook (void) {
 
 int main(void)
 {
+	TimerHandle_t LinkQMap_timer;
+	RadioStatus_t status;
+	RadioError_t err;
+
 	NRF_POWER->DCDCEN = 1;
 	APP_ERROR_CHECK(NRF_LOG_INIT(NULL));
 	NRF_LOG_DEFAULT_BACKENDS_INIT();
@@ -338,14 +342,14 @@ int main(void)
 
 	SX126xConfigureCad(CAD_SYMBOL_NUM, CAD_DET_PEAK, CAD_DET_MIN, 0);
 	
-	RadioStatus_t status = SX126xGetStatus();
+	status = SX126xGetStatus();
 	if (status.Fields.ChipMode == 0x2) {
 		NRF_LOG("sx126x status: STDBY_RC");
 	} else {
 		NRF_LOG("sx126x mode: 0x%02x", status.Fields.ChipMode);
 	}
 	
-	RadioError_t err = SX126xGetDeviceErrors();
+	err = SX126xGetDeviceErrors();
 	if (!err.Value) {
 		NRF_LOG("sx126x init with 0 error");
 	} else {
@@ -369,10 +373,10 @@ int main(void)
 	
 	m_irq_Semaphore = xSemaphoreCreateBinary();
 	m_ack_Semaphore = xSemaphoreCreateBinary();
-	
+
 	NRF_LOG("LoRaPkg max size: %d", SIZE_PKG_MAX);
 	Addr_t addr;
-	
+
 	do {
 		if ( NRF_UICR->CUSTOMER[0] == 0xdeadbeef ) {
 			addr.mac = addr.net = NRF_UICR->CUSTOMER[1];
@@ -397,6 +401,9 @@ int main(void)
 			xTaskCreate(app_recv_task, "app_recv", configMINIMAL_STACK_SIZE + 200, NULL, 1, &app_recv_handle);
 			xTaskCreate(app_stat_task, "app_stat", configMINIMAL_STACK_SIZE + 100, NULL, 1, &app_stat_handle);
 			xTaskCreate(app_ping_task, "app_ping", configMINIMAL_STACK_SIZE + 100, NULL, 1, &app_ping_handle);
+
+			LinkQMap_timer = xTimerCreate("LQM_timer", pdMS_TO_TICKS(LINKQMAP_CLEAR_PERIOD), pdTRUE, 0, Route.clearLinkQuailtyMapTimer);
+			xTimerStart(LinkQMap_timer, 0);
 			
 			NRF_LOG("nrf lora mesh starting...");
 			NRF_LOG_FLUSH();

@@ -3,6 +3,9 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "FreeRTOS.h"
+#include "task.h"
+#include "timers.h"
 
 #define ROUTING_TABLE_SIZE 16
 
@@ -28,6 +31,7 @@ typedef struct {
 } RouteTableEntry;
 
 typedef struct {
+	bool updated;
 	int16_t quality;
 	bool valid;
 } LinkQualityEntry;
@@ -36,6 +40,7 @@ typedef struct {
 	int8_t (*getRouteTo) (uint8_t dst);
 	void (*updateRoute) (uint8_t dest, uint8_t next_hop, uint8_t hops);
 	void (*updateLinkQualityMap) (uint8_t addr, int16_t quality);
+	void (*clearLinkQuailtyMapTimer) (TimerHandle_t xTimer);
 	void (*initRouteTable) (Addr_t *addr);
 	void (*clearRoutingTable) (void);
 	uint8_t (*getNetAddr) (void);
