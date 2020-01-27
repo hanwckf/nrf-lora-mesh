@@ -173,8 +173,10 @@ void lora_net_rx_task (void * pvParameter)
 	while (1) {
 		if ( xQueueReceive(mac_rx_buf, &p, portMAX_DELAY) == pdPASS)
 		{
+			/*
 			NRF_LOG_DBG_TIME("L3: nsrc: 0x%02x, ndst: 0x%02x, msrc: 0x%02x", 
 				p.Header.NetHeader.src, p.Header.NetHeader.dst, p.Header.MacHeader.src);
+			*/
 			
 			if (p.Header.NetHeader.dst == Route.getNetAddr()
 					|| p.Header.NetHeader.dst == NET_BROADCAST_ADDR) {
@@ -223,7 +225,7 @@ void lora_net_rx_task (void * pvParameter)
 
 static void send_ra_respon(LoRaPkg* p, lora_net_hook *hook)
 {
-	NRF_LOG_DBG_TIME("L3: recv RA from: 0x%02x, pid: %d, last pid: %d ", 
+	NRF_LOG_DBG_TIME("L3: recv RA from: 0x%02x, pid: %d, last pid: %d ",
 		p->Header.NetHeader.src ,p->Header.NetHeader.pid, _last_ra[p->Header.NetHeader.src]);
 	
 	if (p->Header.NetHeader.pid != _last_ra[p->Header.NetHeader.src])

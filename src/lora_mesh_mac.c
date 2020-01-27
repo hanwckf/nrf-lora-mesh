@@ -52,8 +52,8 @@ SemaphoreHandle_t m_irq_Semaphore;
 bool mac_peek_pkg (LoRaPkg* p)
 {
 	uint8_t i,j;
-	NRF_LOG_DBG_TIME("L2: nsrc: 0x%02x, ndst: 0x%02x, msrc: 0x%02x",
-		p->Header.NetHeader.src, p->Header.NetHeader.dst, p->Header.MacHeader.src);	
+	NRF_LOG_DBG_TIME("L2: nsrc: 0x%02x, ndst: 0x%02x, msrc: 0x%02x, mdst: 0x%02x",
+		p->Header.NetHeader.src, p->Header.NetHeader.dst, p->Header.MacHeader.src, p->Header.MacHeader.dst);
 
 	Route.updateRoute(p->Header.NetHeader.src,
 		p->Header.MacHeader.src, p->Header.NetHeader.hop);
