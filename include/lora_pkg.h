@@ -79,8 +79,9 @@ typedef	union {
 } AppPayload;
 
 typedef struct {
+	uint8_t hops;
 	uint8_t RA_List[MAX_HOPS];
-} *pRoutePayload, RoutePayload;
+} RoutePayload;
 
 typedef struct {
 	LoRaHeader Header;

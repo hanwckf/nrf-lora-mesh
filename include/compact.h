@@ -7,7 +7,7 @@
 #define DelayMs(i) nrf_delay_ms(i)
 #define Spi_t	nrf_drv_spi_t
 
-#define RTOS_TIME ((xTaskGetTickCount() * 1000) >> 10)
+#define RTOS_TIME ((xTaskGetTickCount() * 1000) >> 9)
 
 #define NRF_LOG_TIME(fmt, ...) NRF_LOG_RAW_INFO("[%d]: %s: " fmt "\n", RTOS_TIME, __FUNCTION__, ##__VA_ARGS__)
 #define NRF_LOG(fmt, ...) NRF_LOG_RAW_INFO("%s: " fmt "\n", __FUNCTION__, ##__VA_ARGS__)

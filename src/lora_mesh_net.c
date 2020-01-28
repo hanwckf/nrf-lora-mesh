@@ -30,7 +30,6 @@ QueueHandle_t net_rx_buf;
 
 uint32_t ack_time;
 
-static void ra_forward(LoRaPkg* p, lora_net_hook *hook);
 static void ra_handle(LoRaPkg* p, lora_net_hook *hook);
 
 TaskHandle_t lora_net_tx_handle;
@@ -57,6 +56,7 @@ static int16_t _last_ra[255];
 
 #define GEN_RA(p, dest) \
 	do { \
+		p.RouteData.hops = 0; \
 		p.Header.type = TYPE_RA; \
 		p.Header.MacHeader.dst = MAC_BROADCAST_ADDR; \
 		p.Header.NetHeader.src = Route.getNetAddr(); \
@@ -206,14 +206,11 @@ void lora_net_rx_task (void * pvParameter)
 			} else {
 				/* It must be NET unicast, check hops */
 				if (p.Header.NetHeader.hop < MAX_HOPS ) {
-					if (hook->netForward != NULL) hook->netForward();
-					if (p.Header.type == TYPE_RA) {
-						ra_forward(&p, hook);
-					} else {
-						NRF_LOG_DBG_TIME("L3: forward, send to net_tx_buf");
-						p.Header.NetHeader.hop++;
-						xQueueSend(net_tx_buf, &p, portMAX_DELAY);
-					}
+					if (hook->netForward != NULL)
+						hook->netForward();
+					NRF_LOG_DBG_TIME("L3: forward, send to net_tx_buf");
+					p.Header.NetHeader.hop++;
+					xQueueSend(net_tx_buf, &p, portMAX_DELAY);
 				} else {
 					NRF_LOG_DBG_TIME("L3: hop max, drop!");
 					net_fwd_err++; net_rx_drop++;
@@ -225,7 +222,7 @@ void lora_net_rx_task (void * pvParameter)
 
 static void send_ra_respon(LoRaPkg* p, lora_net_hook *hook)
 {
-	NRF_LOG_DBG_TIME("L3: recv RA from: 0x%02x, pid: %d, last pid: %d ",
+	NRF_LOG_DBG_TIME("L3: recv RA from: 0x%02x, pid: %d, last pid: %d",
 		p->Header.NetHeader.src ,p->Header.NetHeader.pid, _last_ra[p->Header.NetHeader.src]);
 	
 	if (p->Header.NetHeader.pid != _last_ra[p->Header.NetHeader.src])
@@ -236,6 +233,7 @@ static void send_ra_respon(LoRaPkg* p, lora_net_hook *hook)
 		p->Header.NetHeader.subtype = SUB_RA_RESPON;
 		p->Header.NetHeader.dst = p->Header.NetHeader.src;
 		p->Header.NetHeader.src = Route.getNetAddr();
+		p->Header.NetHeader.hop = 0;
 		
 		//NRF_LOG_HEX_DBG(p, sizeof(LoRaPkg));
 		xQueueSend(net_tx_buf, p, portMAX_DELAY);
@@ -249,20 +247,7 @@ static void ra_handle(LoRaPkg* p, lora_net_hook *hook)
 	switch (p->Header.NetHeader.subtype) {
 		case SUB_RA: send_ra_respon(p, hook);
 			break;
-		case SUB_RA_RESPON: break; /* already process in mac_peek_pkg */
-		case SUB_RA_FAIL: break; /* TODO */
-		default: break;
-	}
-}
-
-static void ra_forward(LoRaPkg* p, lora_net_hook *hook)
-{
-	switch (p->Header.NetHeader.subtype) {
-		case SUB_RA: break;
-		case SUB_RA_RESPON: /* forward RA_RESPON, but keep hop count */
-			NRF_LOG_DBG_TIME("forward RA_RESPON!");
-			xQueueSend(net_tx_buf, p, portMAX_DELAY);
-			break;
+		case SUB_RA_RESPON: break;
 		case SUB_RA_FAIL: break; /* TODO */
 		default: break;
 	}
