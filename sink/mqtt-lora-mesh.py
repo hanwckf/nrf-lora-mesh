@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-import time,sys,os,re
+import sys,os,re
 import serial,json
 import paho.mqtt.client as mqtt
 from threading import Thread
