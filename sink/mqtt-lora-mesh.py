@@ -5,7 +5,6 @@ import paho.mqtt.client as mqtt
 from threading import Thread
 from queue import Queue
 
-Tlink_SN = ""
 USBserial = "/dev/ttyUSB0"
 BaudRate = 115200
 
@@ -45,6 +44,7 @@ if __name__ == '__main__':
 		print ("please specify TlinkSN")
 		sys.exit(1)
 	Tlink_SN = sys.argv[1]
+
 	if argc >= 3:
 		USBserial = sys.argv[2]
 		if argc >= 4:
