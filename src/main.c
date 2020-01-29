@@ -146,9 +146,9 @@ static void app_ping_task (void * pvParameter)
 static void print_data (LoRaPkg *p)
 {
 	NRF_LOG_TIME("===>");
-	NRF_LOG("NET: 0x%02x, Temp: " NRF_LOG_FLOAT_MARKER ", Vcc: %d mV", p->Header.NetHeader.src, NRF_LOG_FLOAT(p->AppData.temp), p->AppData.volt);
-	NRF_LOG("MAC: 0x%02x(%d), Rssi: %d, Snr: %d", p->Header.MacHeader.src,
+	NRF_LOG("NET: 0x%02x, MAC: 0x%02x(%d), Rssi: %d, Snr: %d", p->Header.NetHeader.src, p->Header.MacHeader.src,
 		p->Header.NetHeader.hop, p->stat.RssiPkt, p->stat.SnrPkt);
+	NRF_LOG_RAW_INFO("__upd__[%d][" NRF_LOG_FLOAT_MARKER "][%d]\n",p->Header.NetHeader.src, NRF_LOG_FLOAT(p->AppData.temp),p->AppData.volt);
 	NRF_LOG_TIME("<===");
 }
 
