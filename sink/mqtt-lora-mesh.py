@@ -1,9 +1,6 @@
 #!/usr/bin/python3
-import time
-import sys
-import serial
-import re
-import json
+import time,sys,os,re
+import serial,json
 import paho.mqtt.client as mqtt
 from threading import Thread
 from queue import Queue
@@ -31,6 +28,16 @@ def data2json(r):
 	volt = { "flag": "volt_" + r[0], "value": int(r[2]) }
 	upload_data = { "sensorDatas": [ temp, volt ] }
 	return json.dumps(upload_data)
+
+def mqtt_success_hook():
+	led_path = "/sys/class/leds/orangepi:red:status"
+	cmd = """
+	if [ \"$(cat {0}/brightness)\" = \"0\" ]; then
+		echo 1 > {0}/brightness;
+	else
+		echo 0 > {0}/brightness;
+	fi """.format(led_path)
+	os.system(cmd)
 
 if __name__ == '__main__':
 	argc = len(sys.argv)
@@ -71,6 +78,8 @@ if __name__ == '__main__':
 				print("mqtt connection fail")
 			elif ret.rc != mqtt.MQTT_ERR_SUCCESS:
 				print("mqtt publish fail")
+			else:
+				mqtt_success_hook()
 
 	except KeyboardInterrupt:
 		client.loop_stop()
