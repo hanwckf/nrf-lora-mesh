@@ -83,5 +83,6 @@ if __name__ == '__main__':
 
 	except KeyboardInterrupt:
 		client.loop_stop()
+		client.disconnect()
 		serial_alive = False
 		t.join()
