@@ -129,7 +129,9 @@
 #define INCLUDE_eTaskGetState                                                     1
 #define INCLUDE_xEventGroupSetBitFromISR                                          1
 #define INCLUDE_xTimerPendFunctionCall                                            1
+#ifdef ENABLE_SEGGER_SYSTEMVIEW
 #define INCLUDE_pxTaskGetStackStart                                               1
+#endif
 
 /* The lowest interrupt priority that can be used in a call to a "set priority"
 function. */
