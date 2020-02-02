@@ -51,86 +51,52 @@ SemaphoreHandle_t m_irq_Semaphore;
 
 bool mac_peek_pkg (LoRaPkg* p)
 {
-	uint8_t i,j;
+	uint8_t i;
 	NRF_LOG_DBG_TIME("L2: nsrc: 0x%02x, ndst: 0x%02x, msrc: 0x%02x, mdst: 0x%02x",
 		p->Header.NetHeader.src, p->Header.NetHeader.dst, p->Header.MacHeader.src, p->Header.MacHeader.dst);
 	
-	if (p->Header.type == TYPE_RA)
+	if (p->Header.type == TYPE_RA && p->Header.NetHeader.subtype == SUB_RA)
 	{
-		switch (p->Header.NetHeader.subtype) {
-			case SUB_RA:
-				NRF_LOG_DBG_TIME("L2: RA peek");
-				for (i = 0; i < p->RouteData.hops; i++) {
-					NRF_LOG_DBG("L2: recv RA_List_%d: 0x%02x", i , p->RouteData.RA_List[i]);
-				}
+		for (i = 0; i < p->RouteData.hops; i++) {
+			NRF_LOG_DBG("L2: recv RA_List_%d: 0x%02x", i , p->RouteData.RA_List[i]);
+		}
 
-				/* ignore RA from local */
-				if (p->Header.NetHeader.src == Route.getNetAddr()) {
-					NRF_LOG_DBG("ignore SUB_RA from local");
-					return false;
-				}
-				
-				/* ignore previous received RA */
-				for (i = 0; i < p->RouteData.hops; i++) {
-					if (p->RouteData.RA_List[i] == Route.getNetAddr()) {
-						NRF_LOG_DBG("ignore SUB_RA already forward");
-						return false;
-					}
-				}
-				
-				Route.updateRoute(p->Header.NetHeader.src,
-					p->Header.MacHeader.src, p->Header.NetHeader.hop);
+		/* ignore RA from local */
+		if (p->Header.NetHeader.src == Route.getNetAddr()) {
+			NRF_LOG_DBG("ignore RA from local");
+			return false;
+		}
+		
+		/* ignore previous received RA */
+		for (i = 0; i < p->RouteData.hops; i++) {
+			if (p->RouteData.RA_List[i] == Route.getNetAddr()) {
+				NRF_LOG_DBG("ignore RA already process");
+				return false;
+			}
+		}
+		
+		Route.updateRoute(p->Header.NetHeader.src,
+			p->Header.MacHeader.src, p->Header.NetHeader.hop);
 
-				for (i = 0; i < p->RouteData.hops; i++) {
-					Route.updateRoute(p->RouteData.RA_List[i],
-						p->Header.MacHeader.src, p->RouteData.hops - i - 1);
-				}
-				
-				if (p->Header.NetHeader.dst != Route.getNetAddr())
-				{
-					/* append NetAddr to RA_List, then rebroadcast */	
-					p->RouteData.RA_List[p->RouteData.hops] = Route.getNetAddr();
-					p->Header.NetHeader.hop++; p->RouteData.hops++;
-					NRF_LOG_DBG_TIME("L2: RA: rebroadcast!");
-					for (i = 0; i < p->RouteData.hops; i++) {
-						NRF_LOG_DBG("L2: send RA_List_%d: 0x%02x", i , p->RouteData.RA_List[i]);
-					}
-					xQueueSend(mac_tx_buf, p, 0);
-					return false;
-				}
-				break;
-			case SUB_RA_RESPON:
-				NRF_LOG_DBG_TIME("L2: RA_RESPON peek");
-				for (i = 0; i < p->RouteData.hops; i++) {
-					NRF_LOG_DBG("L2: recv RA_List_%d: 0x%02x", i , p->RouteData.RA_List[i]);
-				}
-				
-				Route.updateRoute(p->Header.NetHeader.src,
-					p->Header.MacHeader.src, p->Header.NetHeader.hop);
-				
-				if (p->Header.NetHeader.dst == Route.getNetAddr()) {
-					for (i = 0; i < p->RouteData.hops; i++) {
-						Route.updateRoute(p->RouteData.RA_List[i],
-							p->Header.MacHeader.src, i);
-					}
-				} else {
-					for (i = 0; i < p->RouteData.hops; i++) {
-						if (p->RouteData.RA_List[i] == Route.getMacAddr())
-							break;
-					}
-					i++;
-					for (j = 0 ; i < p->RouteData.hops; i++, j++) {
-						Route.updateRoute(p->RouteData.RA_List[i],
-							p->Header.MacHeader.src, j);
-					}
-				}
-				break;
-			default: break;
+		for (i = 0; i < p->RouteData.hops; i++) {
+			Route.updateRoute(p->RouteData.RA_List[i],
+				p->Header.MacHeader.src, p->RouteData.hops - i - 1);
+		}
+		
+		if (p->Header.NetHeader.dst != Route.getNetAddr())
+		{
+			/* append NetAddr to RA_List, then rebroadcast */	
+			p->RouteData.RA_List[p->RouteData.hops] = Route.getNetAddr();
+			p->Header.NetHeader.hop++; p->RouteData.hops++;
+			NRF_LOG_DBG_TIME("L2: RA rebroadcast!");
+			for (i = 0; i < p->RouteData.hops; i++) {
+				NRF_LOG_DBG("L2: send RA_List_%d: 0x%02x", i , p->RouteData.RA_List[i]);
+			}
+			xQueueSend(mac_tx_buf, p, 0);
+			return false;
 		}
 	}
-
 	return true;
-
 }
 
 extern uint8_t ack_wait_id;
@@ -176,6 +142,31 @@ static void mac_rx_handle(LoRaPkg* p)
 				mac_rx_drop++;
 			}
 			return;
+		} else if (p->Header.type == TYPE_RA && p->Header.NetHeader.subtype == SUB_RA_RESPON) {
+			uint8_t i, j;
+			for ( i = 0; i < p->RouteData.hops; i++) {
+				NRF_LOG_DBG("L2: recv RA_RESPON_List_%d: 0x%02x", i , p->RouteData.RA_List[i]);
+			}
+
+			Route.updateRoute(p->Header.NetHeader.src,
+				p->Header.MacHeader.src, p->Header.NetHeader.hop);
+			
+			if (p->Header.NetHeader.dst == Route.getNetAddr()) {
+				for ( i = 0; i < p->RouteData.hops; i++) {
+					Route.updateRoute(p->RouteData.RA_List[i],
+						p->Header.MacHeader.src, i);
+				}
+			} else {
+				for ( i = 0; i < p->RouteData.hops; i++) {
+					if (p->RouteData.RA_List[i] == Route.getMacAddr())
+						break;
+				}
+				i++;
+				for (j = 0 ; i < p->RouteData.hops; i++, j++) {
+					Route.updateRoute(p->RouteData.RA_List[i],
+						p->Header.MacHeader.src, j);
+				}
+			}
 		}
 		if (ret)
 			xQueueSend(mac_rx_buf, p, 0);
