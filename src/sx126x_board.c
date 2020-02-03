@@ -1,12 +1,8 @@
 #include "radio.h"
-#include "sx126x.h"
 #include "sx126x_board.h"
 
-#include "compact.h"
 #include "nrf_gpio.h"
 #include "nrfx_gpiote.h"
-
-#include "compact.h"
 
 static const nrf_drv_spi_t spi = NRF_DRV_SPI_INSTANCE(0);
 

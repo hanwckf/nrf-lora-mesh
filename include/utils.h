@@ -1,5 +1,5 @@
-#ifndef __COMPACT_H_
-#define __COMPACT_H_
+#ifndef __UTILS_H_
+#define __UTILS_H_
 
 #include "nrf_delay.h"
 #include "nrf_log.h"

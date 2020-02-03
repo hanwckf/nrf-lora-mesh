@@ -1,7 +1,7 @@
 #define DEBUG_LOG
 #define DEBUG_ROUTE
 #include "mesh_route.h"
-#include "compact.h"
+#include "utils.h"
 
 static Addr_t _addr;
 static RouteTableEntry _routes[ROUTING_TABLE_SIZE];

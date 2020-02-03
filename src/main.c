@@ -20,7 +20,6 @@
 
 #include "lora_mesh.h"
 #include "lora_pkg.h"
-#include "compact.h"
 
 #include "lora_config.h"
 #include "mesh_route.h"

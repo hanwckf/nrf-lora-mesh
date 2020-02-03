@@ -26,7 +26,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "nrfx_gpiote.h"
-#include "compact.h"
+#include "utils.h"
 
 /*!
  * Radio driver supported modems

@@ -3,7 +3,7 @@
 #include "nrf_temp.h"
 #include "nrf_drv_saadc.h"
 #include "lora_nrf_gpio.h"
-#include "compact.h"
+#include "utils.h"
 
 const uint8_t leds_list[LEDS_NUMBER] = LED_LIST;
 

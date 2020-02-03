@@ -11,7 +11,7 @@
 #include "lora_mesh.h"
 #include "lora_pkg.h"
 
-#include "compact.h"
+#include "utils.h"
 #include "lora_config.h"
 
 /* net layer counter */

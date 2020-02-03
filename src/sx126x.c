@@ -25,8 +25,6 @@
 #include "sx126x.h"
 #include "sx126x_board.h"
 
-#include "compact.h"
-
 /*!
  * \brief Radio registers definition
  */

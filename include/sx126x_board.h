@@ -17,7 +17,7 @@ Maintainer: Miguel Luis and Gregory Cristian
 #define __SX126x_ARCH_H__
 
 #include <stdint.h>
-#include "compact.h"
+#include "utils.h"
 #include "sx126x.h"
 
 /*!

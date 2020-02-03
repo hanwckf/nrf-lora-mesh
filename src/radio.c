@@ -27,7 +27,6 @@
 #include "sx126x_board.h"
 #include "nrf_delay.h"
 #include "nrfx_gpiote.h"
-#include "compact.h"
 
 /*!
  * \brief Initializes the radio
