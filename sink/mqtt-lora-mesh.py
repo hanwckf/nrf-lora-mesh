@@ -1,9 +1,9 @@
 #!/usr/bin/python3
 import sys,os,re
 import serial,json
+import queue
 import paho.mqtt.client as mqtt
 from threading import Thread
-from queue import Queue
 
 USBserial = "/dev/ttyUSB0"
 BaudRate = 115200
@@ -12,14 +12,20 @@ def on_connect(client, userdata, flags, rc):
 	print("mqtt connection return: " + str(rc))
 
 def serial_read(s, q):
+	global serial_alive
 	pattern = re.compile(r'__upd__\[(\d+)\]\[(\-?\d+\.\d+)\]\[(\d+)\]')
-	while (serial_alive):
-		b = s.readline()
-		if b:
-			b = b.decode('utf-8')
-			r = pattern.findall(b)
-			if r:
-				q.put(r[0])
+	try:
+		while (serial_alive):
+			b = s.readline()
+			if b:
+				b = b.decode('utf-8')
+				r = pattern.findall(b)
+				if r:
+					q.put(r[0])
+	except serial.serialutil.SerialException:
+		print("serial port error")
+		pass
+	serial_alive = False
 	print("serial thread exit")
 
 def data2json(r):
@@ -64,14 +70,17 @@ if __name__ == '__main__':
 	client.connect("mq.tlink.io", 1883, 60)
 	client.loop_start()
 
-	q = Queue()
+	q = queue.Queue()
 	serial_alive = True
 	t = Thread(target=serial_read, args=(tty,q,))
 	t.start()
 
 	try:
-		while True:
-			data = q.get(block=True, timeout=None)
+		while (serial_alive):
+			try:
+				data = q.get(block=True, timeout=3)
+			except queue.Empty:
+				continue
 			j = data2json(data)
 			ret = client.publish(Tlink_SN, payload=j, qos=0)
 			if ret.rc == mqtt.MQTT_ERR_NO_CONN:
