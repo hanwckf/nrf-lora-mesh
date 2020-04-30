@@ -337,8 +337,8 @@ int main(void)
 						LORA_PREAMBLE_LENGTH, LORA_FIX_LENGTH_PAYLOAD_ON,
 						true, 0, 0, LORA_IQ_INVERSION_ON, 0 );
 
-	Radio.SetRxConfig( MODEM_LORA, LORA_BW, LORA_SF, LORA_CR, 0, LORA_PREAMBLE_LENGTH,
-						0, LORA_FIX_LENGTH_PAYLOAD_ON, 
+	Radio.SetRxConfig( MODEM_LORA, LORA_BW, LORA_SF, LORA_CR, 0, 
+						LORA_PREAMBLE_LENGTH, 0, LORA_FIX_LENGTH_PAYLOAD_ON, 
 						0, true, 0, 0, LORA_IQ_INVERSION_ON, false );
 
 	SX126xConfigureCad(CAD_SYMBOL_NUM, CAD_DET_PEAK, CAD_DET_MIN, 0);
@@ -394,21 +394,30 @@ int main(void)
 
 		if ( net_tx_buf && net_rx_buf && mac_tx_buf && mac_rx_buf && 
 				app_ping_buf && app_stat_buf && m_irq_Semaphore && m_ack_Semaphore ) {
-			xTaskCreate(lora_mac_task, "lora_mac", configMINIMAL_STACK_SIZE + 200, &param, 3, &lora_mac_handle);
+			xTaskCreate(lora_mac_task, "lora_mac", configMINIMAL_STACK_SIZE + 200, 
+				&param, 3, &lora_mac_handle);
 			
-			xTaskCreate(lora_net_tx_task, "lora_net_tx", configMINIMAL_STACK_SIZE + 200, &param, 2, &lora_net_tx_handle);
-			xTaskCreate(lora_net_rx_task, "lora_net_rx", configMINIMAL_STACK_SIZE + 200, &param, 2, &lora_net_rx_handle);
+			xTaskCreate(lora_net_tx_task, "lora_net_tx", configMINIMAL_STACK_SIZE + 200, 
+				&param, 2, &lora_net_tx_handle);
+			xTaskCreate(lora_net_rx_task, "lora_net_rx", configMINIMAL_STACK_SIZE + 200, 
+				&param, 2, &lora_net_rx_handle);
 			if (NRF_UICR->CUSTOMER[1] == 0x1) {
 				/* ping to id 0x2 and 0x3 periodly */
-				//xTaskCreate(app_gw_task, "app_gw", configMINIMAL_STACK_SIZE + 100, NULL, 1, &app_gw_handle);
+				/* xTaskCreate(app_gw_task, "app_gw", configMINIMAL_STACK_SIZE + 100, 
+					NULL, 1, &app_gw_handle); */
 			} else {
-				xTaskCreate(app_upload_task, "app_upload", configMINIMAL_STACK_SIZE + 100, NULL, 1, &app_upload_handle);
+				xTaskCreate(app_upload_task, "app_upload", configMINIMAL_STACK_SIZE + 100, 
+					NULL, 1, &app_upload_handle);
 			}
-			xTaskCreate(app_recv_task, "app_recv", configMINIMAL_STACK_SIZE + 200, NULL, 1, &app_recv_handle);
-			xTaskCreate(app_stat_task, "app_stat", configMINIMAL_STACK_SIZE + 100, NULL, 1, &app_stat_handle);
-			xTaskCreate(app_ping_task, "app_ping", configMINIMAL_STACK_SIZE + 100, NULL, 1, &app_ping_handle);
+			xTaskCreate(app_recv_task, "app_recv", configMINIMAL_STACK_SIZE + 200, 
+				NULL, 1, &app_recv_handle);
+			xTaskCreate(app_stat_task, "app_stat", configMINIMAL_STACK_SIZE + 100, 
+				NULL, 1, &app_stat_handle);
+			xTaskCreate(app_ping_task, "app_ping", configMINIMAL_STACK_SIZE + 100, 
+				NULL, 1, &app_ping_handle);
 
-			LinkQMap_timer = xTimerCreate("LQM_timer", pdMS_TO_TICKS(LINKQMAP_CLEAR_PERIOD), pdTRUE, 0, Route.clearLinkQuailtyMapTimer);
+			LinkQMap_timer = xTimerCreate("LQM_timer", pdMS_TO_TICKS(LINKQMAP_CLEAR_PERIOD), 
+				pdTRUE, 0, Route.clearLinkQuailtyMapTimer);
 			xTimerStart(LinkQMap_timer, 0);
 			
 			NRF_LOG("nrf lora mesh starting...");
