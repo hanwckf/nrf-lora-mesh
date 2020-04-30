@@ -143,9 +143,10 @@ static void app_ping_task (void * pvParameter)
 static void print_data (LoRaPkg *p)
 {
 	NRF_LOG_TIME("===>");
-	NRF_LOG("NET: 0x%02x, MAC: 0x%02x(%d), Rssi: %d, Snr: %d", p->Header.NetHeader.src, p->Header.MacHeader.src,
-		p->Header.NetHeader.hop, p->stat.RssiPkt, p->stat.SnrPkt);
-	NRF_LOG_RAW_INFO("__upd__[%d][" NRF_LOG_FLOAT_MARKER "][%d]\n",p->Header.NetHeader.src, NRF_LOG_FLOAT(p->AppData.temp),p->AppData.volt);
+	NRF_LOG("NET: 0x%02x, MAC: 0x%02x(%d), Rssi: %d, Snr: %d", p->Header.NetHeader.src, 
+		p->Header.MacHeader.src, p->Header.NetHeader.hop, p->stat.RssiPkt, p->stat.SnrPkt);
+	NRF_LOG_RAW_INFO("__upd__[%d][" NRF_LOG_FLOAT_MARKER "][%d]\n",p->Header.NetHeader.src, 
+		NRF_LOG_FLOAT(p->AppData.temp),p->AppData.volt);
 	NRF_LOG_TIME("<===");
 }
 
@@ -154,9 +155,11 @@ static void print_pingret (LoRaPkg *p)
 	int16_t ping_ret;
 	memcpy(p->AppData.custom + 2, &ping_ret, sizeof(ping_ret));
 	if (ping_ret < 0) {
-		NRF_LOG_TIME("0x%02x -> 0x%02x, timeout!", p->Header.NetHeader.src, p->AppData.custom[1]);
+		NRF_LOG_TIME("0x%02x -> 0x%02x, timeout!", 
+			p->Header.NetHeader.src, p->AppData.custom[1]);
 	} else {
-		NRF_LOG_TIME("0x%02x -> 0x%02x, %d ms", p->Header.NetHeader.src, p->AppData.custom[1], ping_ret);
+		NRF_LOG_TIME("0x%02x -> 0x%02x, %d ms", 
+			p->Header.NetHeader.src, p->AppData.custom[1], ping_ret);
 	}
 }
 
@@ -269,7 +272,8 @@ static void app_stat_task ( void * pvParameter)
 		NRF_LOG("PHY CAD det/done: %d, %d", phy_cad_det, phy_cad_done);
 		NRF_LOG("PHY Rx err/timeout/done: %d, %d, %d", phy_rx_err, phy_rx_timeout, phy_rx_done);
 		NRF_LOG("MAC Tx: %d; Rx: %d", mac_tx_done, mac_rx_done);
-		NRF_LOG("NET Rx: %d; Tx acked: %d (retry: %d, fail: %d)", net_rx_done, net_tx_ack_ok, net_tx_ack_retry, net_tx_ack_fail);
+		NRF_LOG("NET Rx: %d; Tx acked: %d (retry: %d, fail: %d)", net_rx_done, net_tx_ack_ok, 
+			net_tx_ack_retry, net_tx_ack_fail);
 		NRF_LOG_TIME("<===");
 #endif
 	}
@@ -330,12 +334,12 @@ int main(void)
 	Radio.SetChannel( RF_FREQ );
 
 	Radio.SetTxConfig( MODEM_LORA, TX_POWER, 0, LORA_BW, LORA_SF, LORA_CR,
-								   LORA_PREAMBLE_LENGTH, LORA_FIX_LENGTH_PAYLOAD_ON,
-								   true, 0, 0, LORA_IQ_INVERSION_ON, 0 );
+						LORA_PREAMBLE_LENGTH, LORA_FIX_LENGTH_PAYLOAD_ON,
+						true, 0, 0, LORA_IQ_INVERSION_ON, 0 );
 
 	Radio.SetRxConfig( MODEM_LORA, LORA_BW, LORA_SF, LORA_CR, 0, LORA_PREAMBLE_LENGTH,
-								   0, LORA_FIX_LENGTH_PAYLOAD_ON, 
-								   0, true, 0, 0, LORA_IQ_INVERSION_ON, false );
+						0, LORA_FIX_LENGTH_PAYLOAD_ON, 
+						0, true, 0, 0, LORA_IQ_INVERSION_ON, false );
 
 	SX126xConfigureCad(CAD_SYMBOL_NUM, CAD_DET_PEAK, CAD_DET_MIN, 0);
 	
@@ -388,7 +392,8 @@ int main(void)
 			break;
 		}
 
-		if ( net_tx_buf && net_rx_buf && mac_tx_buf && mac_rx_buf && app_ping_buf && app_stat_buf && m_irq_Semaphore && m_ack_Semaphore ) {
+		if ( net_tx_buf && net_rx_buf && mac_tx_buf && mac_rx_buf && 
+				app_ping_buf && app_stat_buf && m_irq_Semaphore && m_ack_Semaphore ) {
 			xTaskCreate(lora_mac_task, "lora_mac", configMINIMAL_STACK_SIZE + 200, &param, 3, &lora_mac_handle);
 			
 			xTaskCreate(lora_net_tx_task, "lora_net_tx", configMINIMAL_STACK_SIZE + 200, &param, 2, &lora_net_tx_handle);
@@ -412,7 +417,6 @@ int main(void)
 			SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
 			
 			vTaskStartScheduler();
-		
 		} else {
 			NRF_LOG("ERROR! xQueueCreate() or xSemaphoreCreateBinary() failed!");
 			break;
@@ -422,5 +426,4 @@ int main(void)
 	NRF_LOG_FLUSH();
 	
 	while(1);
-
 }
