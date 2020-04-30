@@ -409,7 +409,7 @@ bool RxContinuous = false;
 PacketStatus_t RadioPktStatus;
 uint8_t RadioRxPayload[255];
 */
-										 
+                                         
 //bool IrqFired = false;
 
 /*
@@ -493,9 +493,9 @@ void RadioInit( RadioEvents_t *events, DioIrqHandler dioIrq )
 
     SX126xInit( dioIrq );
     SX126xSetStandby( STDBY_RC );
-	
+    
     SX126xSetRegulatorMode( USE_DCDC );
-	//SX126xSetRegulatorMode( USE_LDO );
+    //SX126xSetRegulatorMode( USE_LDO );
 
     SX126xSetBufferBaseAddress( 0x00, 0x00 );
     SX126xSetTxParams( 0, RADIO_RAMP_200_US );
@@ -578,7 +578,7 @@ bool RadioIsChannelFree( RadioModems_t modem, uint32_t freq, int16_t rssiThresh,
     RadioSleep( );
     return status;
 #else
-	return true;
+    return true;
 #endif 
 }
 
@@ -935,7 +935,7 @@ void RadioSetRxDutyCycle( uint32_t rxTime, uint32_t sleepTime )
 
 void RadioStartCad( void )
 {
-	SX126xSetDioIrqParams( IRQ_CAD_DONE | IRQ_CAD_ACTIVITY_DETECTED, 
+    SX126xSetDioIrqParams( IRQ_CAD_DONE | IRQ_CAD_ACTIVITY_DETECTED, 
                            IRQ_CAD_DONE | IRQ_CAD_ACTIVITY_DETECTED,
                            IRQ_RADIO_NONE, IRQ_RADIO_NONE );
     SX126xSetCad( );

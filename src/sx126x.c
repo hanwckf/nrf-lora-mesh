@@ -92,14 +92,14 @@ void SX126xInit( DioIrqHandler dioIrq )
     CalibrationParams_t calibParam;
 
     SX126xSetDio3AsTcxoCtrl( TCXO_CTRL_1_8V, RADIO_TCXO_SETUP_TIME << 6 ); // convert from ms to SX126x time base
-	SX126xClearDeviceErrors();
-	
+    SX126xClearDeviceErrors();
+    
     calibParam.Value = 0x7F;
     SX126xCalibrate( calibParam );
 #endif
 
     SX126xSetDio2AsRfSwitchCtrl( true );
-	SX126xAntSwOn( );
+    SX126xAntSwOn( );
     OperatingMode = MODE_STDBY_RC;
 }
 
@@ -482,8 +482,8 @@ void SX126xSetTxParams( int8_t power, RadioRampTimes_t rampTime )
 #endif
     {
         SX126xSetPaConfig( 0x02, 0x03, 0x00, 0x01 ); /* +17dbm */
-		//SX126xSetPaConfig( 0x03, 0x05, 0x00, 0x01 ); /* +20dbm */
-		//SX126xSetPaConfig( 0x04, 0x07, 0x00, 0x01 ); /* +22dbm */
+        //SX126xSetPaConfig( 0x03, 0x05, 0x00, 0x01 ); /* +20dbm */
+        //SX126xSetPaConfig( 0x04, 0x07, 0x00, 0x01 ); /* +22dbm */
         if( power > 22 )
         {
             power = 22;

@@ -672,8 +672,8 @@ typedef struct SX126x_s
     uint8_t		DIO1;
     uint8_t		DIO2;
     uint8_t		DIO3;
-	uint8_t		NSS;
-	uint8_t		RXEN;
+    uint8_t		NSS;
+    uint8_t		RXEN;
     Spi_t		Spi;
     PacketParams_t PacketParams;
     PacketStatus_t PacketStatus;

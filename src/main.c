@@ -326,15 +326,15 @@ int main(void)
 	SX126xIoInit(SX126x_NSS, SX126x_MISO, SX126x_MOSI, SX126x_SCLK, 
 		SX126x_BUSY, SX126x_RXEN, SX126x_NRST, SX126x_DIO1);
 	
-    Radio.Init( NULL , dio_irq_handle);
-    Radio.SetChannel( RF_FREQ );
+	Radio.Init( NULL , dio_irq_handle);
+	Radio.SetChannel( RF_FREQ );
 
-    Radio.SetTxConfig( MODEM_LORA, TX_POWER, 0, LORA_BW, LORA_SF, LORA_CR,
-                                   LORA_PREAMBLE_LENGTH, LORA_FIX_LENGTH_PAYLOAD_ON,
-                                   true, 0, 0, LORA_IQ_INVERSION_ON, 0 );
+	Radio.SetTxConfig( MODEM_LORA, TX_POWER, 0, LORA_BW, LORA_SF, LORA_CR,
+								   LORA_PREAMBLE_LENGTH, LORA_FIX_LENGTH_PAYLOAD_ON,
+								   true, 0, 0, LORA_IQ_INVERSION_ON, 0 );
 
-    Radio.SetRxConfig( MODEM_LORA, LORA_BW, LORA_SF, LORA_CR, 0, LORA_PREAMBLE_LENGTH,
-                                   0, LORA_FIX_LENGTH_PAYLOAD_ON, 
+	Radio.SetRxConfig( MODEM_LORA, LORA_BW, LORA_SF, LORA_CR, 0, LORA_PREAMBLE_LENGTH,
+								   0, LORA_FIX_LENGTH_PAYLOAD_ON, 
 								   0, true, 0, 0, LORA_IQ_INVERSION_ON, false );
 
 	SX126xConfigureCad(CAD_SYMBOL_NUM, CAD_DET_PEAK, CAD_DET_MIN, 0);

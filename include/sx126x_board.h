@@ -24,8 +24,8 @@ Maintainer: Miguel Luis and Gregory Cristian
  * \brief Initializes the radio I/Os pins interface
  */
 void SX126xIoInit
-	( uint8_t spi_nss,uint8_t spi_miso, uint8_t spi_mosi, uint8_t spi_sck, 
-	uint8_t busy, uint8_t rxen, uint8_t nrst, uint8_t dio1 );
+    ( uint8_t spi_nss,uint8_t spi_miso, uint8_t spi_mosi, uint8_t spi_sck, 
+    uint8_t busy, uint8_t rxen, uint8_t nrst, uint8_t dio1 );
 
 /*!
  * \brief Initializes DIO IRQ handlers
@@ -110,7 +110,7 @@ uint8_t SX126xGetPaSelect( uint32_t channel );
  * \brief Initializes the RF Switch I/Os pins interface
  */
 #define SX126xAntSwOn( ) \
-	nrf_gpio_pin_write( SX126x.RXEN, 1 )
+    nrf_gpio_pin_write( SX126x.RXEN, 1 )
 
 /*!
  * \brief De-initializes the RF Switch I/Os pins interface
@@ -118,7 +118,7 @@ uint8_t SX126xGetPaSelect( uint32_t channel );
  * \remark Needed to decrease the power consumption in MCU low power modes
  */
 #define SX126xAntSwOff( ) \
-	nrf_gpio_pin_write( SX126x.RXEN, 0 )
+    nrf_gpio_pin_write( SX126x.RXEN, 0 )
 
 /*!
  * \brief Checks if the given RF frequency is supported by the hardware
@@ -134,10 +134,10 @@ bool SX126xCheckRfFrequency( uint32_t frequency );
 extern SX126x_t SX126x;
 
 #define BoardEnableIrq( ) \
-	nrfx_gpiote_in_event_enable(SX126x.DIO1, true)
+    nrfx_gpiote_in_event_enable(SX126x.DIO1, true)
 
 #define BoardDisableIrq( ) \
-	nrfx_gpiote_in_event_disable(SX126x.DIO1)
+    nrfx_gpiote_in_event_disable(SX126x.DIO1)
 
-	
+    
 #endif // __SX126x_ARCH_H__

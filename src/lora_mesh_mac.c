@@ -209,7 +209,7 @@ void lora_mac_task(void * pvParameter)
 			phy_cad_done++;			
 			if (hook->macCadDone != NULL) hook->macCadDone();
 			
-            if (IS_IRQ(irqRegs, IRQ_CAD_ACTIVITY_DETECTED)) 
+			if (IS_IRQ(irqRegs, IRQ_CAD_ACTIVITY_DETECTED)) 
 			{
 				phy_cad_det++;
 				if (hook->macCadDetect != NULL) hook->macCadDetect();
@@ -295,7 +295,7 @@ void lora_mac_task(void * pvParameter)
 					}
 				}
 			}
-        }
+		}
 		
 		Radio.Sleep();
 		NRF_LOG_FLUSH();
