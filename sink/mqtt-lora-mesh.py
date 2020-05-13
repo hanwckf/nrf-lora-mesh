@@ -18,13 +18,15 @@ def serial_read(s, q):
 		while (serial_alive):
 			b = s.readline()
 			if b:
-				b = b.decode('utf-8')
+				try:
+					b = b.decode('utf-8')
+				except UnicodeDecodeError:
+					continue
 				r = pattern.findall(b)
 				if r:
 					q.put(r[0])
 	except serial.serialutil.SerialException:
 		print("serial port error")
-		pass
 	serial_alive = False
 	print("serial thread exit")
 
